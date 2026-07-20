@@ -41,19 +41,21 @@ export const kpis = [
   {
     id: 'ata',
     icon: 'Factory',
-    title: 'DC ATA Consumed',
+    title: 'DC Consumption & Sourcing',
     value: '9.3%',
     accent: 'amber',
     warning:
-      'System Flag: Core inventories are drawing down safety margins; checking upstream PO timelines.',
+      'System Flag: Primary DC (DC-01 · North) is over-bound at 112%; allocation is falling back to DC-02 · Central to keep plans moving.',
     lines: [
-      { label: '', value: '5,894 / 63,108 units drawn' },
-      { label: '', value: '57,214 units left in DC' },
+      { label: '', value: '5,894 / 63,108 units drawn · 57,214 left' },
+      { label: 'Primary', value: 'DC-01 · North over-bound 112%', warn: true },
+      { label: 'Fallback', value: '1,240u (21%) from DC-02 · Central' },
     ],
     spark: [4, 5, 6, 6, 7, 8, 9.3],
     delta: '+2.1pt',
     deltaDir: 'up',
-    tooltip: 'Share of distribution-center Available-To-Allocate inventory consumed by this cycle.',
+    tooltip:
+      'Share of distribution-center Available-To-Allocate inventory consumed this cycle, plus the cross-DC fallback: when the primary DC is over-bound or exhausted, allocation draws from a secondary DC (added lead time and handling cost).',
   },
   {
     id: 'oos',
@@ -88,6 +90,23 @@ export const kpis = [
     delta: '4 stores',
     deltaDir: 'up',
     tooltip: 'Estimated revenue exposure from unmet demand across flagged stores.',
+  },
+  {
+    id: 'storesNearCapacity',
+    icon: 'Warehouse',
+    title: 'Stores Near Capacity',
+    value: '9',
+    accent: 'indigo',
+    lines: [
+      { label: 'Of', value: '141 stores in cycle' },
+      { label: 'Breach', value: '2 stores project over 100% fill', warn: true },
+    ],
+    spark: [2, 3, 4, 5, 6, 8, 9],
+    delta: '+3 stores',
+    deltaDir: 'up',
+    overlay: { title: 'Capacity Watch', unmetUnits: '9', label: 'Stores at / over capacity' },
+    tooltip:
+      'Stores where projected fill (On Hand + On Order + In Transit + New Allocation) is nearing or exceeding capacity — a soft-constraint breach that can strand stock in the backroom.',
   },
 ]
 
@@ -143,15 +162,15 @@ export const playbook = [
   {
     id: 'cardDcInventory',
     severity: 'critical',
-    title: 'DC Inventory Constrained',
+    title: 'DC Inventory & Multi-DC Sourcing',
     what:
-      'DC inventory is below safety threshold or fully exhausted on core styles across 4 plans and 16 product-store combinations, restricting how much can be allocated this cycle.',
+      'The primary DC (DC-01 · North) is over-bound at 112% and exhausted on core styles, so allocation has fallen back to a secondary DC (DC-02 · Central) — 1,240 units (21% of the draw) are now sourced cross-DC across 4 plans and 16 product-store combinations.',
     why:
-      'When DC available-to-allocate drops below buffer or drains out, the runner cannot satisfy demand regardless of store need — allocation is capped by supply, not by rules.',
+      'When the primary DC drains below buffer or drives past its safe bound, the runner reaches into a secondary DC to keep plans moving. That fallback masks the underlying shortfall and adds cross-DC lead time and handling cost.',
     next:
-      'Trace each constrained component to its pending purchase order (ETA) and hold or reprioritize impacted plans until replenishment lands.',
+      'Review each cross-DC fallback: confirm the secondary DC can spare the draw, trace exhausted components to their pending POs (ETA Jul 28 – Aug 02), and hold or reprioritize plans that depend on the over-bound primary DC.',
     lostSales:
-      'Unmet demand across 4 high-exposure stores until inbound POs (ETA Jul 28 – Aug 02) replenish the drained and buffer-breached components.',
+      'Unmet demand across 4 high-exposure stores until inbound POs replenish the primary DC; 1,240 units carry added cross-DC lead time from the secondary fallback.',
     lostSalesValue: '~$221.00 revenue at risk',
     trigger: 'Export the DC-Constrained Components List',
     exportBucketId: 'dcInventory',
@@ -172,6 +191,22 @@ export const playbook = [
     trigger: 'Export the Skewed Size Curve List',
     exportBucketId: 'sizeCurve',
   },
+  {
+    id: 'cardStoreCapacity',
+    severity: 'warning',
+    title: 'Store Capacity Soft Constraint',
+    what:
+      'For 9 of 141 stores, projected fill (On Hand + On Order + In Transit + New Allocation) is nearing or exceeding physical store capacity across 3 plans — a soft-constraint breach that allocation did not hard-stop.',
+    why:
+      'Store capacity is a soft limit, so the runner can allocate past it. Overfilled stores cannot shelf the inventory, leading to backroom congestion, delayed processing, and stock effectively stranded off the floor.',
+    next:
+      'Review the near-capacity stores: trim or stagger the new allocation, or set up a store-to-store transfer to relieve the overfill before dispatch.',
+    lostSales:
+      'Overfilled stores strand incoming units in the backroom instead of on the floor, delaying sell-through at the very stores already at their limit.',
+    lostSalesValue: 'Fill / handling risk',
+    trigger: 'Export the Near-Capacity Stores List',
+    exportBucketId: 'storeCapacity',
+  },
 ]
 
 export const insights = [
@@ -179,6 +214,7 @@ export const insights = [
     id: 'minConstraints',
     icon: '⬆️',
     tone: 'sky',
+    iconName: 'arrowUp',
     title: 'Min Constraints Influencing Allocation',
     planCount: 3,
     macro: '3 Plans | 1,194 SKU-Store-Size Combinations | 1,606 Excess Units Over-Allocated',
@@ -257,6 +293,7 @@ export const insights = [
     id: 'maxCapping',
     icon: '🔒',
     tone: 'slate',
+    iconName: 'lock',
     title: 'Max Capping Allocation',
     planCount: 2,
     macro: '2 Plans | 312 combinations reached configured ceilings | 190 units throttled',
@@ -289,7 +326,8 @@ export const insights = [
   {
     id: 'packConfig',
     icon: '🧩',
-    tone: 'amber',
+    tone: 'indigo',
+    iconName: 'puzzle',
     title: 'Pack Config → Under / Over Allocation',
     planCount: 7,
     macro: '7 Plans | 1,271 SKU-Store-Size Combinations | 6,977 Units Under/Over Pack Multiple',
@@ -368,13 +406,20 @@ export const insights = [
     id: 'dcInventory',
     icon: '🔴',
     tone: 'rose',
-    title: 'DC Inventory Constrained',
+    iconName: 'alert',
+    title: 'DC Inventory & Multi-DC Sourcing',
     subtitle: 'HIGH SEVERITY ANOMALY',
     planCount: 4,
-    macro: 'DC inventory below threshold or exhausted | 4 Plans Affected | 16 Product-Store combinations',
+    macro: 'Primary DC over-bound / exhausted → fallback draw from secondary DC | 4 Plans Affected | 16 Product-Store combinations',
     directoryTitle: 'CRITICAL SUPPLY CONSTRAINT DIRECTORY',
-    directoryHint: 'Trace constrained components to corresponding pending purchase orders',
+    directoryHint: 'Trace constrained components to purchase orders and cross-DC fallback sourcing',
     type: 'poTable',
+    // Multi-DC sourcing summary: primary DC drawn past its safe bound, forcing
+    // fallback allocation from a secondary DC to keep plans moving.
+    dcFlow: {
+      primary: { name: 'DC-01 · North', drawnPct: 112, status: 'Over-Bound' },
+      secondary: { name: 'DC-02 · Central', drawUnits: 1240, drawPct: 21 },
+    },
     rows: [
       {
         icon: '👕',
@@ -382,6 +427,10 @@ export const insights = [
         group: 'Core Acc',
         status: 'DC Inv Exhausted',
         statusTone: 'critical',
+        primaryDc: 'DC-01 · North',
+        primaryDcStatus: 'Exhausted',
+        sourcedFrom: 'DC-02 · Central',
+        fallbackUnits: 820,
         po: 'PO-2026-X992',
         eta: 'July 28',
         channel: 'Vendor Direct',
@@ -392,6 +441,10 @@ export const insights = [
         group: 'Core Acc',
         status: 'DC Inv Below Threshold',
         statusTone: 'warning',
+        primaryDc: 'DC-01 · North',
+        primaryDcStatus: 'Over-Bound',
+        sourcedFrom: 'DC-02 · Central',
+        fallbackUnits: 420,
         po: 'PO-2026-X411',
         eta: 'Aug 02',
         channel: 'Central Hub Delivery',
@@ -402,6 +455,7 @@ export const insights = [
     id: 'sizeCurve',
     icon: '🟡',
     tone: 'amber',
+    iconName: 'ruler',
     title: 'Size Curve Deviation',
     planCount: 1,
     macro: 'Shipped profiles deviate from baseline store demand history | 1 Plan Affected',
@@ -432,6 +486,69 @@ export const insights = [
       },
     ],
   },
+  {
+    id: 'storeCapacity',
+    icon: '📦',
+    tone: 'teal',
+    iconName: 'warehouse',
+    title: 'Store Capacity Soft Constraint',
+    subtitle: 'SOFT LIMIT NEARING',
+    planCount: 3,
+    macro: 'On Hand + On Order + In Transit + New Allocation approaching store capacity | 9 of 141 Stores Near Limit',
+    directoryTitle: 'STORE CAPACITY UTILIZATION DIRECTORY',
+    directoryHint: 'Projected fill = On Hand + On Order + In Transit + New Allocation vs. store capacity ceiling',
+    type: 'capacityTable',
+    rows: [
+      {
+        id: 'ks001a04',
+        name: '000-outlet-store',
+        plans: 'PLN-092',
+        capacity: 4200,
+        onHand: 1180,
+        onOrder: 640,
+        inTransit: 520,
+        newAllocation: 2140,
+        note:
+          'System Note: Projected fill exceeds capacity by 480 units. New allocation is a soft breach — trim or stagger delivery.',
+      },
+      {
+        id: 'ks007a03',
+        name: '000-outlet-store',
+        plans: 'PLN-092',
+        capacity: 3600,
+        onHand: 980,
+        onOrder: 410,
+        inTransit: 360,
+        newAllocation: 1690,
+        note:
+          'System Note: Projected fill at 95.6% of capacity — within the soft-warning band. Monitor before dispatch.',
+      },
+      {
+        id: 'ks010a02',
+        name: '000-outlet-store',
+        plans: 'PLN-104',
+        capacity: 2800,
+        onHand: 720,
+        onOrder: 300,
+        inTransit: 240,
+        newAllocation: 1420,
+        note:
+          'System Note: Projected fill exceeds capacity by 80 units. Consider a store-to-store transfer or delivery stagger.',
+      },
+      {
+        id: 'ks016a03',
+        name: '000-outlet-store',
+        plans: 'PLN-124',
+        capacity: 3000,
+        onHand: 610,
+        onOrder: 280,
+        inTransit: 190,
+        newAllocation: 1560,
+        note:
+          'System Note: Projected fill at 88.0% of capacity — approaching the soft limit. Headroom is thin.',
+      },
+    ],
+  },
 ]
 
 export const validationChecks = [
@@ -458,6 +575,14 @@ export const validationChecks = [
     severity: 'MEDIUM',
     severityCount: 2,
     notes: '1 plan concentrated over 75% of stock in a single outlet.',
+  },
+  {
+    check: 'Store Capacity Soft Breach',
+    status: 'FLAGGED',
+    statusTone: 'warning',
+    severity: 'MEDIUM',
+    severityCount: 3,
+    notes: '9 stores project On Hand + On Order + In Transit + New Allocation near or over capacity.',
   },
   {
     check: 'Size Curve Deviation',
@@ -591,8 +716,22 @@ export function buildInsightExport(bucketId) {
   const item = insights.find((b) => b.id === bucketId)
   if (!item) return []
   if (item.type === 'poTable') {
-    return ['Style-Color,Group,Network Status,Target PO'].concat(
-      item.rows.map((r) => `${r.style},${r.group},${r.status},${r.po} (ETA ${r.eta} / ${r.channel})`),
+    return ['Style-Color,Group,Network Status,Primary DC,Primary DC Status,Sourced From,Fallback Units,Target PO'].concat(
+      item.rows.map(
+        (r) =>
+          `${r.style},${r.group},${r.status},${r.primaryDc || ''},${r.primaryDcStatus || ''},${r.sourcedFrom || ''},${r.fallbackUnits || ''},${r.po} (ETA ${r.eta} / ${r.channel})`,
+      ),
+    )
+  }
+  if (item.type === 'capacityTable') {
+    return [
+      'Store,Plans,Capacity,On Hand,On Order,In Transit,New Allocation,Projected Total,Utilization %',
+    ].concat(
+      item.rows.map((r) => {
+        const projected = r.onHand + r.onOrder + r.inTransit + r.newAllocation
+        const util = ((projected / r.capacity) * 100).toFixed(1)
+        return `${r.id} ${r.name},${r.plans},${r.capacity},${r.onHand},${r.onOrder},${r.inTransit},${r.newAllocation},${projected},${util}%`
+      }),
     )
   }
   const header =

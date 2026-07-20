@@ -7,12 +7,13 @@ import {
   ArrowUp,
   TriangleAlert,
   LayoutDashboard,
+  Warehouse,
 } from 'lucide-react'
 import { kpis } from '../data/mockData'
 import Sparkline from './Sparkline'
 import SectionHeader from './SectionHeader'
 
-const iconMap = { Package, Factory, AlertTriangle, DollarSign }
+const iconMap = { Package, Factory, AlertTriangle, DollarSign, Warehouse }
 
 const accentMap = {
   slate: {
@@ -42,6 +43,20 @@ const accentMap = {
     spark: '#7c3aed',
     dot: 'bg-gradient-to-b from-violet-400 to-violet-500',
     pill: 'bg-violet-50 text-violet-600',
+  },
+  teal: {
+    icon: 'bg-gradient-to-br from-teal-50 to-teal-100 text-teal-600',
+    value: 'text-slate-900',
+    spark: '#0d9488',
+    dot: 'bg-gradient-to-b from-teal-400 to-teal-500',
+    pill: 'bg-teal-50 text-teal-600',
+  },
+  indigo: {
+    icon: 'bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600',
+    value: 'text-slate-900',
+    spark: '#4f46e5',
+    dot: 'bg-gradient-to-b from-indigo-400 to-indigo-500',
+    pill: 'bg-indigo-50 text-indigo-600',
   },
 }
 
@@ -106,7 +121,7 @@ function KpiCard({ kpi }) {
       {hover && kpi.overlay && (
         <div className="absolute left-1/2 top-full z-40 mt-2 w-64 -translate-x-1/2 animate-floatUp rounded-2xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl ring-1 ring-black/5 backdrop-blur">
           <p className="text-[11px] font-bold uppercase tracking-wide text-slate-300">
-            Volume Missing
+            {kpi.overlay.title || 'Volume Missing'}
           </p>
           <p className="mt-1 text-3xl font-bold tabular-nums text-white">
             {kpi.overlay.unmetUnits}
@@ -139,7 +154,7 @@ export default function KpiStrip() {
   return (
     <section>
       <SectionHeader icon={LayoutDashboard} title="Overview" subtitle="Core health at a glance" />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((kpi) => (
           <KpiCard key={kpi.id} kpi={kpi} />
         ))}

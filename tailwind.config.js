@@ -49,6 +49,18 @@ export default {
           '0%': { transform: 'translateX(-120%) skewX(-12deg)' },
           '100%': { transform: 'translateX(220%) skewX(-12deg)' },
         },
+        barFill: {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
+        overflowPulse: {
+          '0%, 100%': { opacity: '1', boxShadow: '0 0 8px 1px rgba(244,63,94,0.5)' },
+          '50%': { opacity: '0.75', boxShadow: '0 0 16px 3px rgba(244,63,94,0.75)' },
+        },
+        countUp: {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         pulseRail: 'pulseRail 1.6s ease-in-out infinite',
@@ -60,6 +72,9 @@ export default {
         shimmer: 'shimmer 2.4s linear infinite',
         floatUp: 'floatUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both',
         sheen: 'sheen 1.1s ease-out',
+        barFill: 'barFill 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
+        overflowPulse: 'overflowPulse 1.8s ease-in-out infinite',
+        countUp: 'countUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

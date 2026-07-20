@@ -9,7 +9,8 @@ const diagnosticChecks = [
   { label: 'Min Constraints Influencing Allocation', hint: 'Minimum floors forcing over-allocation above demand' },
   { label: 'Max Capping Allocation', hint: 'Store-level caps throttling allocation below demand' },
   { label: 'Pack Config → Under / Over Allocation', hint: 'Pack-size rounding dropping or over-shipping units' },
-  { label: 'DC Inventory Constrained', hint: 'DC inventory below threshold or exhausted' },
+  { label: 'DC Inventory & Multi-DC Sourcing', hint: 'Primary DC over-bound / exhausted; secondary-DC fallback draw' },
+  { label: 'Store Capacity Soft Constraint', hint: 'On Hand + On Order + In Transit + New Allocation nearing store capacity' },
   { label: 'Size Curve Deviation', hint: 'Shipped size profile vs. baseline demand' },
 ]
 
