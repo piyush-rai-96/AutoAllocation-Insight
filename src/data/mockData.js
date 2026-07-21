@@ -36,33 +36,37 @@ export const kpis = [
     id: 'units',
     icon: 'Package',
     title: 'Units Allocated',
+    metric: 'Total Units Allocated',
     value: '5,894',
     accent: 'slate',
     lines: [
       { label: 'Allocation Rate', value: '53.8%' },
-      { label: 'Demand Requirement', value: '10,957' },
+      { label: 'Total Demand Requirement', value: '10,957 units' },
     ],
     spark: [42, 48, 45, 52, 50, 58, 54],
     delta: '+6.2%',
     deltaDir: 'up',
+    deltaNote: 'vs 7-day avg',
     tooltip: 'Total units committed across all active allocation runs in this cycle.',
   },
   {
     id: 'ata',
     icon: 'Factory',
     title: 'DC Consumption & Sourcing',
+    metric: 'Warehouse ATA Utilized %',
     value: '9.3%',
     accent: 'amber',
     warning:
       'System Flag: Primary DC (DC-01 · North) is fully consumed (100%) and exhausted; allocation is falling back to DC-02 · Central to keep plans moving.',
     lines: [
-      { label: '', value: '5,894 / 63,108 units drawn · 57,214 left' },
-      { label: 'Primary % Consumed', value: '100% · DC-01 · North (exhausted)', warn: true },
-      { label: 'Secondary % Consumed', value: '21% · DC-02 · Central (1,240u fallback)' },
+      { label: 'Drawn vs Remaining ATA', value: '5,894 drawn · 57,214 left (of 63,108)' },
+      { label: 'Primary DC Exhausted', value: '100% · DC-01 · North (exhausted)', warn: true },
+      { label: 'Secondary DC Exhausted', value: '21% · DC-02 · Central (1,240u fallback)' },
     ],
     spark: [4, 5, 6, 6, 7, 8, 9.3],
-    delta: '+2.1pt',
+    delta: '+2.1pp',
     deltaDir: 'up',
+    deltaNote: 'vs 7-day avg',
     tooltip:
       'Share of distribution-center Available-To-Allocate inventory consumed this cycle, plus the cross-DC fallback: when the primary DC is over-bound or exhausted, allocation draws from a secondary DC (added lead time and handling cost).',
   },
@@ -70,16 +74,18 @@ export const kpis = [
     id: 'oos',
     icon: 'AlertTriangle',
     title: 'Demand Unmet Rate',
+    metric: 'Unfilled Demand %',
     value: '47.6%',
     trend: 'up',
     accent: 'rose',
     lines: [
       { label: 'Demand Met', value: '52.4%' },
-      { label: 'FWOS < 1', value: '23 of 141 stores under 1-wk cover', warn: true },
+      { label: 'Low-Stock Stores (FWOS < 1)', value: '23 of 141 stores', warn: true },
     ],
     spark: [31, 34, 38, 40, 42, 45, 47.6],
-    delta: '+3 runs',
+    delta: '+2.6pp',
     deltaDir: 'up',
+    deltaNote: 'vs 7-day avg',
     overlay: { unmetUnits: '6,979', label: 'Unmet Units' },
     tooltip:
       'Share of demand that would go unmet if plans dispatch as currently constrained. FWOS < 1 flags stores with less than one forward week of supply — the leading edge of unmet demand.',
@@ -88,30 +94,34 @@ export const kpis = [
     id: 'revenue',
     icon: 'DollarSign',
     title: 'Revenue at Risk',
+    metric: 'Total Est. Lost Sales ($)',
     value: '$221.00',
     accent: 'violet',
     lines: [
-      { label: '', value: '2.00 Est. Lost Units if Delayed' },
-      { label: '', value: '4 high-exposure stores' },
+      { label: 'Est. Lost Volume', value: '2 units' },
+      { label: 'High-Exposure Stores', value: '4 stores' },
     ],
     spark: [120, 145, 160, 180, 195, 210, 221],
-    delta: '4 stores',
+    delta: '+8.9%',
     deltaDir: 'up',
+    deltaNote: 'vs 7-day avg',
     tooltip: 'Estimated revenue exposure from unmet demand across flagged stores.',
   },
   {
     id: 'storesNearCapacity',
     icon: 'Warehouse',
-    title: 'Stores Near Capacity',
+    title: 'Store Capacity Risk',
+    metric: 'At-Risk Store Count',
     value: '9',
     accent: 'indigo',
     lines: [
-      { label: 'Of', value: '141 stores in cycle' },
-      { label: '% Breach over Capacity', value: '107% peak fill', warn: true },
+      { label: 'Total Cycle Stores', value: '141 stores' },
+      { label: 'Capacity Breach (>100% Fill)', value: '3 stores · 107% peak', warn: true },
     ],
     spark: [2, 3, 4, 5, 6, 8, 9],
     delta: '+3 stores',
     deltaDir: 'up',
+    deltaNote: 'vs 7-day avg',
     overlay: { title: 'Capacity Watch', unmetUnits: '9', label: 'Stores at / over capacity' },
     tooltip:
       'Stores where projected fill (On Hand + On Order + In Transit + New Allocation) is nearing or exceeding capacity — a soft-constraint breach that can strand stock in the backroom.',
@@ -211,7 +221,7 @@ export const playbook = [
       'Work the two lists before dispatch — for over-capacity stores trim or stagger new allocations; for thin-cover (Needs Review) stores review store-wide replenishment or adjust the store velocity multiplier in the engine.',
     lostSales:
       'Overfilled stores strand ~1,842 units in backrooms off the floor, while 7 thin-cover stores risk store-wide stockouts before the next replen cycle.',
-    lostSalesValue: 'Fill / Handling Risk + Stockout Risk (7 stores)',
+    lostSalesValue: 'Fill / Handling Risk + Thin-Cover Risk (7 stores)',
     trigger: 'Export the Macro Store Health List',
     exportBucketId: 'storeCapacity',
   },
@@ -851,3 +861,257 @@ export function getWorklistSummary(excludeIds = []) {
     totalRevenue,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// WHAT-IF AGENT — allocation scenario simulation.
+// The agent compares a Base Plan against 1–3 what-if scenarios. Each scenario
+// carries: cause/effect settings, an allocation trade-off (excess vs lost
+// sales), and a full execution scorecard. Deltas are stored as raw signed
+// numbers so the UI can render +/- and green/red consistently.
+// ─────────────────────────────────────────────────────────────────────────
+
+// A metric cell: value + optional signed delta + semantic direction.
+//   dir: 'good' | 'bad' | 'warn' | 'neutral' → drives the 🟢/🔴/🟡 tone.
+const m = (value, delta = null, dir = 'neutral') => ({ value, delta, dir })
+
+export const whatIfAgent = {
+  insightTitle: 'Relaxing Min Floors + Broader Door Set Recovers Lost Sales Without Backroom Gridlock',
+  basePlan: { code: 'PLN-092', name: 'Base Allocation — Fall Core Cycle' },
+  aiOverview:
+    'The base plan leaves significant demand unmet at high-velocity doors while trapping units behind conservative floors. Across the evaluated scenarios, a moderate floor relaxation paired with a wider door set recovers the most lost sales with the least added excess risk.',
+  recommendedScenarioId: 'sc-2',
+
+  // Baseline column used by the multi-scenario comparison table.
+  base: {
+    storesAllocated: m('118'),
+    stylesAllocated: m('14'),
+    totalEaches: m('42,180'),
+    totalPacks: m('3,515'),
+    excessUsd: m('$18,240'),
+    overallocQty: m('1,606'),
+    lostSalesUsd: m('$41,900'),
+    unmetQty: m('4,156'),
+    overCapacity: m('5'),
+    exhaustedDc: m('3'),
+  },
+
+  scenarios: [
+    {
+      id: 'sc-1',
+      name: 'S1 · Relax Min Floors',
+      overview:
+        'Waives min floors on slow-velocity size-store combinations only, freeing trapped units for redistribution to demand.',
+      settings: {
+        parameters: 'Min floor relaxed 2 → 1 on <1 u/wk combinations',
+        parametersEffect:
+          'Loosens the binding constraint on 1,194 combinations, releasing ~1,100 units back into the demand pool with minimal presentation-safety risk.',
+        productScope: 'Removed 2 Styles (discontinued carryover)',
+        productScopeEffect:
+          'Sharpens demand curves on the remaining 12 styles and slows depletion on the primary DC.',
+        networkBreadth: 'Unchanged (118 Doors)',
+        networkBreadthEffect:
+          'Door set held constant, so FWOS shifts come purely from depth reallocation rather than dilution.',
+      },
+      tradeOff: {
+        overAllocUsd: '$14,100', overAllocUsdDelta: -4140, overAllocUsdDir: 'good',
+        overAllocQty: '1,240', overAllocQtyDelta: -366, overAllocQtyDir: 'good',
+        lostSalesUsd: '$29,700', lostSalesUsdDelta: -12200, lostSalesUsdDir: 'good',
+        unmetQty: '2,940', unmetQtyDelta: -1216, unmetQtyDir: 'good',
+      },
+      supplyType: 'dc',
+      supply: [
+        { name: 'DC-01 · North', value: '18,420 Eaches', delta: -2100, dir: 'bad', note: 'Near Depletion' },
+        { name: 'DC-02 · Central', value: '9,860 Eaches', delta: 0, dir: 'neutral', note: 'Unchanged' },
+      ],
+      scorecard: {
+        totalEaches: m('43,050', 870, 'neutral'),
+        totalPacks: m('3,588', 73, 'neutral'),
+        eligibleStores: m('134', 0, 'neutral'),
+        storesAllocated: m('124', 6, 'good'),
+        stylesAllocated: m('12', -2, 'neutral'),
+        overCapacity: m('4', -1, 'good'),
+        avgFwos: m('3.2 Wks', 0.4, 'warn'),
+        aggMin: m('9,140', -1200, 'warn'),
+        aggMax: m('61,300', 0, 'neutral'),
+        allocForMin: m('8,600', -900, 'neutral'),
+        allocForDemand: m('34,450', 1770, 'good'),
+        netAvailable: m('28,280 Eaches'),
+        exhaustedDc: m('2', -1, 'good'),
+        itConsumed: m('1,240 Eaches'),
+      },
+      comparison: {
+        storesAllocated: m('124', 6, 'good'),
+        stylesAllocated: m('12', -2, 'neutral'),
+        totalEaches: m('43,050', 870, 'neutral'),
+        totalPacks: m('3,588', 73, 'neutral'),
+        excessUsd: m('$14,100', -4140, 'good'),
+        overallocQty: m('1,240', -366, 'good'),
+        lostSalesUsd: m('$29,700', -12200, 'good'),
+        unmetQty: m('2,940', -1216, 'good'),
+        overCapacity: m('4', -1, 'good'),
+        exhaustedDc: m('2', -1, 'good'),
+      },
+    },
+    {
+      id: 'sc-2',
+      name: 'S2 · Relax Floors + Widen Doors',
+      overview:
+        'Combines the floor relaxation with a broader door set, routing freed depth to high-velocity outlets that were previously out of scope.',
+      settings: {
+        parameters: 'Min floor relaxed 2 → 1; pack rounding → nearest',
+        parametersEffect:
+          'Frees trapped depth and lets shipments track demand more closely, cutting artificial over/under-ship on 1,271 combinations.',
+        productScope: 'Removed 2 Styles, Added 1 refreshed core Style',
+        productScopeEffect:
+          'Rebalances demand curves toward proven sellers, easing depletion pressure on the primary DC.',
+        networkBreadth: 'Added 22 Doors (high-velocity flagships)',
+        networkBreadthEffect:
+          'Wider door set absorbs freed units without diluting FWOS — consolidation of demand at proven outlets lifts full-price sell-through.',
+      },
+      tradeOff: {
+        overAllocUsd: '$12,650', overAllocUsdDelta: -5590, overAllocUsdDir: 'good',
+        overAllocQty: '1,090', overAllocQtyDelta: -516, overAllocQtyDir: 'good',
+        lostSalesUsd: '$21,300', lostSalesUsdDelta: -20600, lostSalesUsdDir: 'good',
+        unmetQty: '1,980', unmetQtyDelta: -2176, unmetQtyDir: 'good',
+      },
+      // PO-driven scenario — supply is expedited via inbound POs, so the
+      // Multi-DC section renders POs instead of DC names.
+      supplyType: 'po',
+      supply: [
+        { po: 'PO-2026-X992', eta: 'Jul 28', value: '820 Eaches', dir: 'good' },
+        { po: 'PO-2026-X993', eta: 'Jul 31', value: '640 Eaches', dir: 'good' },
+        { po: 'PO-2026-X411', eta: 'Aug 02', value: '420 Eaches', dir: 'warn' },
+      ],
+      scorecard: {
+        totalEaches: m('45,900', 3720, 'good'),
+        totalPacks: m('3,825', 310, 'good'),
+        eligibleStores: m('156', 22, 'good'),
+        storesAllocated: m('140', 22, 'good'),
+        stylesAllocated: m('13', -1, 'neutral'),
+        overCapacity: m('3', -2, 'good'),
+        avgFwos: m('2.9 Wks', 0.1, 'warn'),
+        aggMin: m('8,900', -1440, 'warn'),
+        aggMax: m('68,200', 6900, 'neutral'),
+        allocForMin: m('8,200', -1300, 'neutral'),
+        allocForDemand: m('37,700', 5020, 'good'),
+        netAvailable: m('24,600 Eaches'),
+        exhaustedDc: m('1', -2, 'good'),
+        itConsumed: m('1,880 Eaches'),
+      },
+      comparison: {
+        storesAllocated: m('140', 22, 'good'),
+        stylesAllocated: m('13', -1, 'neutral'),
+        totalEaches: m('45,900', 3720, 'good'),
+        totalPacks: m('3,825', 310, 'good'),
+        excessUsd: m('$12,650', -5590, 'good'),
+        overallocQty: m('1,090', -516, 'good'),
+        lostSalesUsd: m('$21,300', -20600, 'good'),
+        unmetQty: m('1,980', -2176, 'good'),
+        overCapacity: m('3', -2, 'good'),
+        exhaustedDc: m('1', -2, 'good'),
+      },
+    },
+    {
+      id: 'sc-3',
+      name: 'S3 · Aggressive Depth Push',
+      overview:
+        'Maximizes fill by pushing depth across a wide door set; recovers the most demand but reintroduces backroom gridlock risk.',
+      settings: {
+        parameters: 'Min floor relaxed 2 → 1; max caps raised +15%',
+        parametersEffect:
+          'Raising ceilings unlocks depth but risks over-shipping slow channels — excess climbs as caps loosen.',
+        productScope: 'Added 3 Styles (opportunistic newness)',
+        productScopeEffect:
+          'Broader assortment spreads demand thinner and accelerates DC depletion on core components.',
+        networkBreadth: 'Added 38 Doors',
+        networkBreadthEffect:
+          'Aggressive breadth dilutes FWOS at marginal doors — more stores tip over physical capacity.',
+      },
+      tradeOff: {
+        overAllocUsd: '$23,800', overAllocUsdDelta: 5560, overAllocUsdDir: 'bad',
+        overAllocQty: '2,110', overAllocQtyDelta: 504, overAllocQtyDir: 'bad',
+        lostSalesUsd: '$16,400', lostSalesUsdDelta: -25500, lostSalesUsdDir: 'good',
+        unmetQty: '1,410', unmetQtyDelta: -2746, unmetQtyDir: 'good',
+      },
+      supplyType: 'dc',
+      supply: [
+        { name: 'DC-01 · North', value: '11,200 Eaches', delta: -9320, dir: 'bad', note: 'Critical Depletion' },
+        { name: 'DC-02 · Central', value: '6,400 Eaches', delta: -3460, dir: 'bad', note: 'Fallback Drawn' },
+      ],
+      scorecard: {
+        totalEaches: m('49,700', 7520, 'warn'),
+        totalPacks: m('4,142', 627, 'warn'),
+        eligibleStores: m('172', 38, 'good'),
+        storesAllocated: m('156', 38, 'good'),
+        stylesAllocated: m('16', 2, 'neutral'),
+        overCapacity: m('11', 6, 'bad'),
+        avgFwos: m('2.1 Wks', -0.7, 'bad'),
+        aggMin: m('8,900', -1440, 'warn'),
+        aggMax: m('78,600', 17300, 'warn'),
+        allocForMin: m('8,200', -1300, 'neutral'),
+        allocForDemand: m('41,500', 8820, 'good'),
+        netAvailable: m('17,600 Eaches'),
+        exhaustedDc: m('5', 2, 'bad'),
+        itConsumed: m('2,640 Eaches'),
+      },
+      comparison: {
+        storesAllocated: m('156', 38, 'good'),
+        stylesAllocated: m('16', 2, 'neutral'),
+        totalEaches: m('49,700', 7520, 'warn'),
+        totalPacks: m('4,142', 627, 'warn'),
+        excessUsd: m('$23,800', 5560, 'bad'),
+        overallocQty: m('2,110', 504, 'bad'),
+        lostSalesUsd: m('$16,400', -25500, 'good'),
+        unmetQty: m('1,410', -2746, 'good'),
+        overCapacity: m('11', 6, 'bad'),
+        exhaustedDc: m('5', 2, 'bad'),
+      },
+    },
+  ],
+
+  // Way-forward recommendation widgets (6). Rendered in a responsive grid.
+  recommendation: [
+    {
+      id: 'wayforward',
+      kind: 'wayforward',
+      title: 'Way Forward',
+      headline: 'Execute Scenario S2 — Relax Floors + Widen Doors',
+      body: 'Recovers $20.6K of lost sales and trims $5.6K of excess versus base, while lowering over-capacity doors from 5 → 3.',
+    },
+    {
+      id: 'confidence',
+      kind: 'confidence',
+      title: 'Confidence',
+      score: '88%',
+      body: 'High — freed depth maps to proven high-velocity doors; inbound POs cover the added draw within the cycle window.',
+    },
+    {
+      id: 'risk',
+      kind: 'risk',
+      title: 'Primary Risk',
+      headline: 'PO-2026-X411 ETA slip (Aug 02)',
+      body: 'If the Aug 02 inbound PO slips, 420 Eaches of the added door depth are exposed. Monitor and pre-stage a DC-02 fallback.',
+    },
+    {
+      id: 'upside',
+      kind: 'upside',
+      title: 'Financial Upside',
+      headline: '+$26.2K net',
+      body: '$20.6K lost-sales recovered plus $5.6K excess avoided, net of added logistics cost on the wider door set.',
+    },
+    {
+      id: 'constraints',
+      kind: 'constraints',
+      title: 'Constraints to Relax',
+      body: 'Min floor 2 → 1 on <1 u/wk combos; pack rounding → nearest. Keep max caps at baseline to avoid S3-style gridlock.',
+    },
+    {
+      id: 'nextbest',
+      kind: 'nextbest',
+      title: 'Next Best Action',
+      headline: 'Fallback: Scenario S1',
+      body: 'If the wider door set is rejected, S1 (floors only) still recovers $12.2K of lost sales with no added capacity risk.',
+    },
+  ],
+}
+

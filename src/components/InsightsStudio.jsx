@@ -1,4 +1,5 @@
-import { forwardRef, useState } from 'react'
+import { forwardRef, useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ChevronRight,
   ChevronDown,
@@ -29,6 +30,27 @@ import { insightCards, getPlanMeta, buildInsightExport } from '../data/mockData'
 import Tooltip from './Tooltip'
 import { useToast } from './Toast'
 import SectionHeader from './SectionHeader'
+
+// Each card's SHARE of the total flagged plan-hits this cycle. A plan can trip
+// multiple checks, so raw coverage overlaps; expressing each card as a share of
+// the summed plan-hits lets the badges add up to exactly 100%. Largest-remainder
+// rounding guarantees the rounded shares still total 100.
+const PLAN_SHARE = (() => {
+  const counts = insightCards.map((c) => ({ id: c.id, count: c.planCount || 0 }))
+  const total = counts.reduce((sum, c) => sum + c.count, 0)
+  const map = {}
+  if (!total) return map
+  const parts = counts.map((c) => {
+    const exact = (c.count / total) * 100
+    const floor = Math.floor(exact)
+    return { id: c.id, floor, remainder: exact - floor }
+  })
+  parts.forEach((p) => (map[p.id] = p.floor))
+  let leftover = 100 - parts.reduce((sum, p) => sum + p.floor, 0)
+  const byRemainder = [...parts].sort((a, b) => b.remainder - a.remainder)
+  for (let i = 0; i < leftover; i++) map[byRemainder[i % byRemainder.length].id] += 1
+  return map
+})()
 
 // Severity drives the card ring/dot + label chip. The icon itself still comes
 // from the per-bucket iconName/tone registries below.
@@ -239,7 +261,7 @@ function ExportAllButton({ onExport, title, size = 'md', label = 'Export all', c
       onClick={onExport}
       title={title}
       aria-label={typeof label === 'string' ? label : 'Export all'}
-      className={`group/exp relative inline-flex flex-shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-blue-600 to-sky-600 ${pad} font-bold text-white shadow-md shadow-blue-500/25 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${className}`}
+      className={`group/exp relative inline-flex flex-shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 ${pad} font-bold text-white shadow-md shadow-indigo-400/25 ring-1 ring-white/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-400/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 ${className}`}
     >
       <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover/exp:translate-x-full" />
       <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-white/25 to-transparent" />
@@ -338,6 +360,139 @@ function CopyButton({ value, message, label = 'Copy combination' }) {
     >
       <Copy className="h-3.5 w-3.5" />
     </button>
+  )
+}
+
+// Per-plan copy menu — lets the user copy just this plan's ID, its list of
+// affected style-colors, or its list of affected stores. Rendered through a
+// portal so the dropdown is never clipped by the card's `overflow-hidden`.
+function CopyMenu({ plan }) {
+  const push = useToast()
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef(null)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => {
+      if (btnRef.current?.contains(e.target) || menuRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    const onDismiss = () => setOpen(false)
+    document.addEventListener('mousedown', onDown)
+    window.addEventListener('scroll', onDismiss, true)
+    window.addEventListener('resize', onDismiss)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('scroll', onDismiss, true)
+      window.removeEventListener('resize', onDismiss)
+    }
+  }, [open])
+
+  // Build the copy payloads once per render.
+  const styles = plan.styles || []
+  const styleList = styles.map((s) => `${s.code} (${s.group})`).join('\n')
+  const seen = new Set()
+  const stores = []
+  styles.forEach((s) =>
+    (s.stores || []).forEach((st) => {
+      if (seen.has(st.id)) return
+      seen.add(st.id)
+      stores.push(`${st.id} ${st.name}`)
+    }),
+  )
+  const storeList = stores.join('\n')
+
+  const toggle = (e) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 6, left: Math.max(8, r.right - 232) })
+    }
+    setOpen((o) => !o)
+  }
+
+  const copy = (value, message) => (e) => {
+    e.stopPropagation()
+    if (!value) {
+      push('Nothing to copy for this plan.')
+      setOpen(false)
+      return
+    }
+    navigator.clipboard?.writeText(value).catch(() => {})
+    push(message)
+    setOpen(false)
+  }
+
+  const items = [
+    {
+      icon: FolderTree,
+      label: 'Plan ID',
+      hint: plan.id,
+      onClick: copy(plan.id, `Copied Plan ID: ${plan.id}`),
+    },
+    {
+      icon: Layers,
+      label: 'Style-Colors',
+      hint: `${styles.length}`,
+      onClick: copy(styleList, `Copied ${styles.length} style-color${styles.length === 1 ? '' : 's'} from ${plan.id}`),
+    },
+    {
+      icon: Store,
+      label: 'Stores',
+      hint: `${stores.length}`,
+      onClick: copy(storeList, `Copied ${stores.length} store${stores.length === 1 ? '' : 's'} from ${plan.id}`),
+    },
+  ]
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={`Copy from ${plan.id}`}
+        aria-label={`Copy options for ${plan.id}`}
+        className={`flex flex-shrink-0 items-center gap-0.5 rounded-md px-1.5 py-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:ring-2 focus-visible:ring-blue-300 ${
+          open ? 'bg-slate-100 text-slate-600' : ''
+        }`}
+      >
+        <Copy className="h-3.5 w-3.5" />
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 60 }}
+            className="w-56 animate-drawerIn overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-premium-lg ring-1 ring-black/5"
+          >
+            <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Copy from {plan.id}
+            </p>
+            {items.map(({ icon: Icon, label, hint, onClick }) => (
+              <button
+                key={label}
+                role="menuitem"
+                onClick={onClick}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+              >
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="flex-1">Copy {label}</span>
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+                  {hint}
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }
 
@@ -477,11 +632,7 @@ function PlanNode({ plan, defaultOpen, index, bucketId, onExport }) {
           <span className="text-xs text-slate-500">({plan.summary})</span>
         </button>
         <PlanMetrics meta={meta} />
-        <CopyButton
-          value={plan.id}
-          message={`Copied Plan ID: ${plan.id}`}
-          label="Copy Plan ID"
-        />
+        <CopyMenu plan={plan} />
       </div>
       {open && (
         <div className="relative ml-4 mt-1">
@@ -632,6 +783,17 @@ function PoTable({ rows, dcFlow }) {
     navigator.clipboard?.writeText(po).catch(() => {})
     push('PO copied. Paste into your procurement tool to expedite shipment.')
   }
+  // "Style-Color (Group)" formatting reused for both single-row and full-list copy.
+  const styleLabel = (row) => `${row.style} (${row.group})`
+  const copyStyle = (row) => {
+    navigator.clipboard?.writeText(styleLabel(row)).catch(() => {})
+    push(`Copied style-color: ${styleLabel(row)}`)
+  }
+  const copyStyleList = () => {
+    const list = rows.map(styleLabel).join('\n')
+    navigator.clipboard?.writeText(list).catch(() => {})
+    push(`Copied ${rows.length} style-color${rows.length === 1 ? '' : 's'} to clipboard.`)
+  }
   return (
     <div>
       <DcSourcingFlow dcFlow={dcFlow} />
@@ -639,7 +801,20 @@ function PoTable({ rows, dcFlow }) {
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-gradient-to-r from-slate-100 to-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-2.5 font-semibold">Affected Style-Color</th>
+              <th className="px-4 py-2.5 font-semibold">
+                <span className="inline-flex items-center gap-2">
+                  Affected Style-Color
+                  <button
+                    onClick={copyStyleList}
+                    title="Copy the full style-color list"
+                    aria-label="Copy the full style-color list"
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy list
+                  </button>
+                </span>
+              </th>
               <th className="px-4 py-2.5 font-semibold">Network Status</th>
               <th className="px-4 py-2.5 font-semibold">DC Sourcing</th>
               <th className="px-4 py-2.5 font-semibold">Target Dispatch PO to Expedite</th>
@@ -647,11 +822,19 @@ function PoTable({ rows, dcFlow }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((row, i) => (
-              <tr key={i} className="bg-white transition hover:bg-slate-50/60">
+              <tr key={i} className="group/porow bg-white transition hover:bg-slate-50/60">
                 <td className="px-4 py-3">
                   <span className="mr-1.5">{row.icon}</span>
                   <span className="font-mono font-semibold text-slate-700">{row.style}</span>
                   <span className="ml-1 text-xs text-slate-400">({row.group})</span>
+                  <button
+                    onClick={() => copyStyle(row)}
+                    title="Copy this style-color"
+                    aria-label={`Copy style-color ${styleLabel(row)}`}
+                    className="ml-1.5 inline-flex h-6 w-6 items-center justify-center rounded-md align-middle text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:opacity-100 group-hover/porow:opacity-100"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -943,10 +1126,19 @@ function StoreVelocityIndicator({ row }) {
   )
 }
 
+// "Store ID Name (Tier)" formatting reused for single-row and full-list copy.
+const storeLabel = (row) => `${row.id} ${row.name} (${row.tier})`
+
 // Shared store identifier header used by both drill-down views.
 function StoreHeader({ row, iconTone, children }) {
+  const push = useToast()
+  const copyStore = (e) => {
+    e.stopPropagation()
+    navigator.clipboard?.writeText(storeLabel(row)).catch(() => {})
+    push(`Copied store: ${storeLabel(row)}`)
+  }
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="group/store flex flex-wrap items-center gap-2">
       <span className={`flex h-6 w-6 items-center justify-center rounded-md ${iconTone}`}>
         <Store className="h-3.5 w-3.5" />
       </span>
@@ -956,6 +1148,14 @@ function StoreHeader({ row, iconTone, children }) {
         {row.tier}
       </span>
       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{row.plans}</span>
+      <button
+        onClick={copyStore}
+        title="Copy this store"
+        aria-label={`Copy store ${storeLabel(row)}`}
+        className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:opacity-100 group-hover/store:opacity-100"
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
       {children}
     </div>
   )
@@ -1040,6 +1240,7 @@ const capacityUtil = (r) => (r.onHand + r.onOrder + r.inTransit + r.newAllocatio
 function CapacityTable({ rows }) {
   // Two separate lenses on the same stores, switchable via a segmented control.
   const [view, setView] = useState('capacity')
+  const push = useToast()
 
   const overPhysical = rows.filter((r) => capacityUtil(r) >= 1).length
   const nearPhysical = rows.filter((r) => capacityUtil(r) >= 0.9 && capacityUtil(r) < 1).length
@@ -1070,6 +1271,12 @@ function CapacityTable({ rows }) {
     ? [...rows].sort((a, b) => capacityUtil(b) - capacityUtil(a))
     : [...rows].sort((a, b) => fwosReviewPriority(a.storeWos) - fwosReviewPriority(b.storeWos) === 0 ? a.storeWos - b.storeWos : fwosReviewPriority(b.storeWos) - fwosReviewPriority(a.storeWos))
   const visible = ranked.slice(0, MAX_STORES)
+
+  const copyStoreList = () => {
+    const list = ranked.map(storeLabel).join('\n')
+    navigator.clipboard?.writeText(list).catch(() => {})
+    push(`Copied ${ranked.length} store${ranked.length === 1 ? '' : 's'} to clipboard.`)
+  }
 
   return (
     <div className="space-y-3">
@@ -1107,6 +1314,15 @@ function CapacityTable({ rows }) {
             {s.count} {s.label}
           </span>
         ))}
+        <button
+          onClick={copyStoreList}
+          title="Copy the full store list (in the current order)"
+          aria-label="Copy the full store list"
+          className="ml-auto inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+        >
+          <Copy className="h-3 w-3" />
+          Copy stores
+        </button>
       </div>
 
       <div className="space-y-2.5">
@@ -1175,9 +1391,12 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
           {item.title}
         </span>
         {typeof item.planCount === 'number' && (
-          <span className="hidden items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm sm:inline-flex">
+          <span
+            className="hidden items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm sm:inline-flex"
+            title={`${item.planCount} plans affected — ${PLAN_SHARE[item.id] ?? 0}% of all flagged plan-hits this cycle (shares total 100%)`}
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${accentDot}`} />
-            {item.planCount} {item.planCount === 1 ? 'Plan' : 'Plans'}
+            {PLAN_SHARE[item.id] ?? 0}% of Plans
           </span>
         )}
         {/* Right group — impact then severity, so the eye scans title → impact → severity */}
@@ -1230,8 +1449,8 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
           <div
             className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-xs shadow-sm transition-all duration-300 ${
               evidenceOpen
-                ? 'border-blue-200/70 bg-gradient-to-r from-blue-50/70 via-sky-50/50 to-white'
-                : 'border-slate-200 bg-gradient-to-r from-slate-50 to-white hover:border-blue-200/70 hover:from-blue-50/50 hover:to-white'
+                ? 'border-indigo-200/70 bg-gradient-to-r from-indigo-50/70 via-sky-50/50 to-white'
+                : 'border-slate-200 bg-gradient-to-r from-slate-50 to-white hover:border-indigo-200/70 hover:from-indigo-50/50 hover:to-white'
             }`}
           >
             <button
@@ -1242,7 +1461,7 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
               <span
                 className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg shadow-sm ring-1 transition-all duration-300 ${
                   evidenceOpen
-                    ? 'bg-gradient-to-br from-blue-500 to-sky-500 text-white ring-white/40'
+                    ? 'bg-gradient-to-br from-indigo-400 to-sky-400 text-white ring-white/40'
                     : 'bg-white text-slate-400 ring-slate-200'
                 }`}
               >
@@ -1374,12 +1593,12 @@ const InsightsStudio = forwardRef(function InsightsStudio(
         subtitle="What → Why → Next Step · evidence · export"
       />
       <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-premium-lg ring-1 ring-white/50">
-        <div className="relative flex flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden border-b border-slate-200/70 bg-gradient-to-r from-blue-50 via-sky-50 to-white px-5 py-4 text-slate-700">
-          <span className="pointer-events-none absolute -inset-24 opacity-60 aurora [background-image:radial-gradient(600px_180px_at_10%_-40%,rgba(59,130,246,0.16),transparent),radial-gradient(520px_180px_at_92%_140%,rgba(14,165,233,0.14),transparent),radial-gradient(420px_160px_at_55%_-20%,rgba(96,165,250,0.12),transparent)]" />
+        <div className="relative flex flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden border-b border-slate-200/70 bg-gradient-to-r from-indigo-50 via-sky-50 to-white px-5 py-4 text-slate-700">
+          <span className="pointer-events-none absolute -inset-24 opacity-60 aurora [background-image:radial-gradient(600px_180px_at_10%_-40%,rgba(167,139,250,0.16),transparent),radial-gradient(520px_180px_at_92%_140%,rgba(125,211,252,0.14),transparent),radial-gradient(420px_160px_at_55%_-20%,rgba(110,231,183,0.12),transparent)]" />
           <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
           <div className="relative flex items-center gap-2.5">
-            <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-500 text-white shadow-sm ring-1 ring-white/60">
-              <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-blue-400/40 to-sky-400/30 opacity-60 blur-md" />
+            <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-sky-400 text-white shadow-sm ring-1 ring-white/60">
+              <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-violet-400/40 to-sky-400/30 opacity-60 blur-md" />
               <Sparkles className="relative h-4 w-4" />
             </span>
             <div>

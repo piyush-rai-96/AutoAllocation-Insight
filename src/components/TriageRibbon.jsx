@@ -82,10 +82,10 @@ const cards = [
     scopeLabel: triage.allCycles.scopeLabel,
     theme: {
       base: 'border-slate-200 bg-white',
-      active: 'border-blue-300 bg-blue-50/40 ring-1 ring-blue-200',
+      active: 'border-indigo-200 bg-indigo-50/50 ring-1 ring-indigo-200',
       count: 'text-slate-900',
-      icon: 'text-blue-600 bg-blue-100',
-      dot: 'bg-gradient-to-b from-blue-400 to-blue-600',
+      icon: 'text-indigo-500 bg-indigo-100',
+      dot: 'bg-gradient-to-b from-indigo-300 to-sky-300',
     },
   },
   {
@@ -101,10 +101,10 @@ const cards = [
     scopeLabel: triage.safe.scopeLabel,
     theme: {
       base: 'border-slate-200 bg-white',
-      active: 'border-emerald-300 bg-emerald-50/40 ring-1 ring-emerald-200',
+      active: 'border-emerald-200 bg-emerald-50/50 ring-1 ring-emerald-200',
       count: 'text-slate-900',
-      icon: 'text-slate-600 bg-slate-100',
-      dot: 'bg-emerald-500',
+      icon: 'text-emerald-500 bg-emerald-100',
+      dot: 'bg-gradient-to-b from-emerald-300 to-teal-300',
     },
   },
   {
@@ -121,10 +121,10 @@ const cards = [
     showChecks: true,
     theme: {
       base: 'border-slate-200 bg-white',
-      active: 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-200',
+      active: 'border-amber-200 bg-amber-50/50 ring-1 ring-amber-200',
       count: 'text-slate-900',
-      icon: 'text-slate-600 bg-slate-100',
-      dot: 'bg-amber-500',
+      icon: 'text-amber-500 bg-amber-100',
+      dot: 'bg-gradient-to-b from-amber-300 to-orange-300',
     },
   },
 ]

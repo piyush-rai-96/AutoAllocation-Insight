@@ -17,45 +17,45 @@ const iconMap = { Package, Factory, AlertTriangle, DollarSign, Warehouse }
 
 const accentMap = {
   slate: {
-    icon: 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700',
+    icon: 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600',
     value: 'text-slate-900',
-    spark: '#64748b',
-    dot: 'bg-gradient-to-b from-slate-400 to-slate-500',
-    pill: 'bg-slate-100 text-slate-600',
+    spark: '#94a3b8',
+    dot: 'bg-gradient-to-b from-slate-300 to-slate-400',
+    pill: 'bg-slate-100 text-slate-500',
   },
   amber: {
-    icon: 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-700',
+    icon: 'bg-gradient-to-br from-amber-50 to-orange-100 text-amber-600',
     value: 'text-slate-900',
-    spark: '#d97706',
-    dot: 'bg-gradient-to-b from-amber-400 to-amber-500',
-    pill: 'bg-amber-50 text-amber-700',
+    spark: '#fbbf24',
+    dot: 'bg-gradient-to-b from-amber-300 to-orange-300',
+    pill: 'bg-amber-50 text-amber-600',
   },
   rose: {
-    icon: 'bg-gradient-to-br from-rose-50 to-rose-100 text-rose-600',
+    icon: 'bg-gradient-to-br from-rose-50 to-pink-100 text-rose-500',
     value: 'text-slate-900',
-    spark: '#e11d48',
-    dot: 'bg-gradient-to-b from-rose-400 to-rose-500',
-    pill: 'bg-rose-50 text-rose-600',
+    spark: '#fb7185',
+    dot: 'bg-gradient-to-b from-rose-300 to-pink-300',
+    pill: 'bg-rose-50 text-rose-500',
   },
   violet: {
-    icon: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600',
+    icon: 'bg-gradient-to-br from-violet-50 to-indigo-100 text-violet-500',
     value: 'text-slate-900',
-    spark: '#2563eb',
-    dot: 'bg-gradient-to-b from-blue-400 to-blue-500',
-    pill: 'bg-blue-50 text-blue-600',
+    spark: '#a78bfa',
+    dot: 'bg-gradient-to-b from-violet-300 to-indigo-300',
+    pill: 'bg-violet-50 text-violet-600',
   },
   teal: {
-    icon: 'bg-gradient-to-br from-teal-50 to-teal-100 text-teal-600',
+    icon: 'bg-gradient-to-br from-teal-50 to-emerald-100 text-teal-500',
     value: 'text-slate-900',
-    spark: '#0d9488',
-    dot: 'bg-gradient-to-b from-teal-400 to-teal-500',
+    spark: '#5eead4',
+    dot: 'bg-gradient-to-b from-teal-300 to-emerald-300',
     pill: 'bg-teal-50 text-teal-600',
   },
   indigo: {
-    icon: 'bg-gradient-to-br from-sky-50 to-sky-100 text-sky-600',
+    icon: 'bg-gradient-to-br from-sky-50 to-cyan-100 text-sky-500',
     value: 'text-slate-900',
-    spark: '#0284c7',
-    dot: 'bg-gradient-to-b from-sky-400 to-sky-500',
+    spark: '#7dd3fc',
+    dot: 'bg-gradient-to-b from-sky-300 to-cyan-300',
     pill: 'bg-sky-50 text-sky-600',
   },
 }
@@ -88,21 +88,36 @@ function KpiCard({ kpi }) {
           </h3>
         </div>
         {kpi.delta && (
-          <span
-            className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${accent.pill}`}
-          >
-            {kpi.deltaDir === 'up' && <ArrowUp className="h-3 w-3" />}
-            {kpi.delta}
-          </span>
+          <div className="flex flex-col items-end gap-0.5">
+            <span
+              className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${accent.pill}`}
+            >
+              {kpi.deltaDir === 'up' && <ArrowUp className="h-3 w-3" />}
+              {kpi.delta}
+            </span>
+            {kpi.deltaNote && (
+              <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">
+                {kpi.deltaNote}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
       <div className="relative mt-4 flex items-end justify-between gap-2">
-        <span className={`text-[32px] font-bold leading-none tracking-tight tabular-nums ${accent.value}`}>
-          {kpi.value}
-        </span>
-        <div className="mb-0.5 opacity-70">
+        <div className="min-w-0">
+          <span className={`block text-[32px] font-bold leading-none tracking-tight tabular-nums ${accent.value}`}>
+            {kpi.value}
+          </span>
+          {kpi.metric && (
+            <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              {kpi.metric}
+            </p>
+          )}
+        </div>
+        <div className="mb-0.5 flex flex-col items-end gap-0.5 opacity-80">
           <Sparkline data={kpi.spark} stroke={accent.spark} fill={accent.spark} width={88} height={30} />
+          <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">7-day</span>
         </div>
       </div>
 

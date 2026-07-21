@@ -4,9 +4,12 @@ import { ToastProvider } from './components/Toast'
 import TriageRibbon from './components/TriageRibbon'
 import KpiStrip from './components/KpiStrip'
 import InsightsStudio from './components/InsightsStudio'
+import SideNav from './components/SideNav'
+import WhatIfAgent from './components/WhatIfAgent'
 import { insights } from './data/mockData'
 
 function Workspace() {
+  const [view, setView] = useState('insights') // 'insights' | 'whatif'
   const [filter, setFilter] = useState('all')
   const [openInsights, setOpenInsights] = useState({})
 
@@ -31,14 +34,20 @@ function Workspace() {
   }
 
   return (
+    <div className="flex min-h-screen">
+      <SideNav view={view} onChange={setView} />
+      <div className="min-w-0 flex-1">
+        {view === 'whatif' ? (
+          <WhatIfAgent />
+        ) : (
     <div className="min-h-screen">
       {/* App bar */}
       <header className="sticky top-0 z-30 border-b border-white/60 bg-white/65 shadow-[0_1px_0_rgba(15,23,42,0.04),0_10px_30px_-18px_rgba(15,23,42,0.3)] backdrop-blur-xl">
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-sky-700 text-white shadow-premium ring-1 ring-white/20">
-              <span className="pointer-events-none absolute -inset-2 bg-[conic-gradient(from_180deg,rgba(59,130,246,0.6),rgba(14,165,233,0.5),rgba(96,165,250,0.6),rgba(59,130,246,0.6))] opacity-70 blur-md aurora" />
+            <div className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-400 via-violet-400 to-sky-400 text-white shadow-premium ring-1 ring-white/40">
+              <span className="pointer-events-none absolute -inset-2 bg-[conic-gradient(from_180deg,rgba(167,139,250,0.6),rgba(125,211,252,0.5),rgba(110,231,183,0.5),rgba(167,139,250,0.6))] opacity-70 blur-md aurora" />
               <Boxes className="relative h-5 w-5" />
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 to-transparent" />
             </div>
@@ -83,6 +92,9 @@ function Workspace() {
           AutoAllocation Insights · Baseline cycle snapshot · Read-only diagnostics
         </footer>
       </main>
+    </div>
+        )}
+      </div>
     </div>
   )
 }
