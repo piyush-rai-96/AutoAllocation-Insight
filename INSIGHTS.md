@@ -1,29 +1,30 @@
 # AutoAllocation Insights — Insight Specification
 
-A reference map of every diagnostic Insight in the console: which **UI section** surfaces it, which **KPI** it drives, its paired **Playbook action**, the **data source**, **severity**, and **FWOS** (Forward Weeks of Supply) impact.
+A reference map of every diagnostic Insight in the console: which **UI section** surfaces it, which **KPI** it drives, its paired **action narrative**, the **data source**, **severity**, and **FWOS** (Forward Weeks of Supply) impact.
 
 > Source of truth: `src/data/mockData.js`. UI: `src/components/*`. This doc mirrors the mock dataset for the baseline cycle snapshot.
 
 > **📚 Documentation map** — start here based on who you are:
 > - **`AGENT.md`** — full system & technical overview. Start here for the big picture.
 > - **`BUSINESS_GUIDE.md`** — business & implementation view: what each section does, all KPIs, data inputs, rollout.
-> - **`INSIGHTS.md`** *(this file)* — technical field-level mapping: insight ↔ playbook ↔ KPI, data sources, "add a bucket" guide.
+> - **`INSIGHTS.md`** *(this file)* — technical field-level mapping: insight ↔ action ↔ KPI, data sources, "add a bucket" guide.
 > - **`OVERVIEW.md`** — one-page plain-language business summary.
 
 ---
 
-## 1. Console Sections (top → bottom)
+## 1. Console Sections (top → bottom, 3 sections)
 
 Rendered by `src/App.jsx` inside `<main>`:
 
 | Order | Section | Component | Purpose |
 |------|---------|-----------|---------|
-| 1 | **Triage Ribbon** | `TriageRibbon.jsx` | Cycle-level counts + validation checks; filters into the Handbook |
+| 1 | **Triage Ribbon** | `TriageRibbon.jsx` | Cycle-level counts + validation checks; filters into the Insights section |
 | 2 | **Overview (KPIs)** | `KpiStrip.jsx` | 5 core health metrics at a glance |
-| 3 | **Alan's Smart Actions Playbook** | `Playbook.jsx` | Prioritized, collapsible What → Why → Next-Step action cards |
-| 4 | **Insight Handbook** | `InsightsStudio.jsx` | Expandable diagnostic directories drilling Plan → Style-Color → Store |
+| 3 | **Insights & Smart Actions** | `InsightsStudio.jsx` | One card per bucket: collapsed summary → **Action** (What → Why → Next-Step + export) → nested **Evidence** drill-down (Plan → Style-Color → Store) |
 
-**Handbook display caps (top-N + export):** plan-tree drawers show the **top 10 plans** (ranked by revenue at risk), each plan the **top 5 style-colors**, each style-color the **top 5 stores**. When a list exceeds its cap, a *"Showing top N of M — Export full list"* footer appears (only when truncated) that copies the complete bucket CSV via `buildInsightExport()`. Constants: `MAX_PLANS` / `MAX_STYLES` / `MAX_STORES` in `InsightsStudio.jsx`. The DC PO table and Store Capacity table are left uncapped (already short, high-signal rows).
+The merged section reads `insightCards[]` — a selector in `mockData.js` that joins each `insights[]` bucket (evidence) with its `playbook[]` card (action narrative) on `exportBucketId`. A dark header banner shows total/critical/warning counts + **Expand/Collapse all**.
+
+**Evidence display caps (top-N + export):** plan-tree drawers show the **top 10 plans** (ranked by revenue at risk), each plan the **top 5 style-colors**, each style-color the **top 5 stores**. When a list exceeds its cap, a *"Showing top N of M — Export full list"* footer appears (only when truncated) that copies the complete bucket CSV via `buildInsightExport()`. Constants: `MAX_PLANS` / `MAX_STYLES` / `MAX_STORES` in `InsightsStudio.jsx`. The DC PO table and Store Capacity table are left uncapped (already short, high-signal rows).
 
 ---
 
@@ -37,7 +38,7 @@ Data: `kpis[]` in `mockData.js`. Rendered as cards in `KpiStrip.jsx`.
 | DC Consumption & Sourcing (`ata`) | 9.3% | amber | 5,894 / 63,108 drawn · 57,214 left; ⚠ **Primary DC-01 over-bound 112%**; Fallback 1,240u (21%) from DC-02 | **DC Inventory & Multi-DC Sourcing** insight |
 | Demand Unmet Rate (`oos`) | 47.6% | rose | Demand Met 52.4%; ⚠ **FWOS < 1**: 23 of 141 stores under 1-wk cover; ⚠ 3-run increase | **Pack Config**, all under-allocation insights |
 | Revenue at Risk (`revenue`) | $221.00 | violet | 2.00 est. lost units; 4 high-exposure stores | **Pack Config**, **DC Inventory** |
-| Stores Near Capacity (`storesNearCapacity`) | 9 | indigo | Of 141 stores; ⚠ 2 project over 100% fill | **Store Capacity Soft Constraint** insight |
+| Stores Near Capacity (`storesNearCapacity`) | 9 | indigo | Of 141 stores; ⚠ 2 project over 100% fill | **Store Capacity & Total Store Velocity** insight |
 
 > The DC consumption and secondary-DC sourcing signals are merged into a single **DC Consumption & Sourcing** KPI so the whole warehouse story reads from one tile.
 
@@ -56,19 +57,19 @@ Data: `triage` + `validationChecks[]` in `mockData.js`.
 | DC ATA Over-Drain | FLAGGED | CRITICAL | 4 | 100% of safety buffer breached |
 | Priority Inversion | FLAGGED | MEDIUM | 2 | 6 plans ran out of priority sequence |
 | Single Store Concentration | FLAGGED | MEDIUM | 2 | 1 plan concentrated >75% into one outlet |
-| Store Capacity Soft Breach | FLAGGED | MEDIUM | 3 | 9 stores project On Hand+On Order+In Transit+New Alloc near/over capacity |
+| Store Capacity & Velocity Breach | FLAGGED | CRITICAL | 12 | 5 over physical capacity; 4 bloated (>20 WOS); 3 breach both physical + velocity |
 | Size Curve Deviation | CLEAR | NONE | 0 | Distributions match baseline |
 
-**Diagnostic checks tooltip (Triage "Plans with Issues"):** 6 checks — Min Constraints, Max Capping, Pack Config, DC Inventory & Multi-DC Sourcing, Store Capacity Soft Constraint, Size Curve Deviation.
+**Diagnostic checks tooltip (Triage "Plans with Issues"):** 6 checks — Min Constraints, Max Capping, Pack Config, DC Inventory & Multi-DC Sourcing, Store Capacity & Total Store Velocity, Size Curve Deviation.
 
 ---
 
-## 4. Insight ↔ Playbook ↔ KPI Master Map
+## 4. Insight ↔ Action ↔ KPI Master Map
 
-Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (`playbook[]`) via a shared `exportBucketId`. Both export the same CSV rows through `buildInsightExport()`.
+Each insight bucket (`insights[]`) pairs with an action narrative (`playbook[]`) via a shared `exportBucketId`; `insightCards[]` merges them into one card. Both export the same CSV rows through `buildInsightExport()`. (Field labeled *Action* below is the `playbook[]` entry id.)
 
 ### A. Min Constraints Influencing Allocation
-- **Insight id:** `minConstraints` · **Playbook:** `cardMinConstraints`
+- **Insight id:** `minConstraints` · **Action:** `cardMinConstraints`
 - **Severity:** Critical · **Tone:** sky · **Type:** tree
 - **Scope:** 3 plans · 1,194 SKU-Store-Size combos · 1,606 excess units over-allocated
 - **Related KPI:** Units Allocated (over-allocation), Demand Unmet Rate (starved flagship stores)
@@ -79,7 +80,7 @@ Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (
 - **Plans:** PLN-118 (+980u), PLN-124 (+626u)
 
 ### B. Max Capping Allocation
-- **Insight id:** `maxCapping` · **Playbook:** `cardMaxCapping`
+- **Insight id:** `maxCapping` · **Action:** `cardMaxCapping`
 - **Severity:** Warning · **Tone:** slate · **Type:** tree
 - **Scope:** 2 plans · 312 combos at ceiling · 190 units throttled
 - **Related KPI:** DC ATA Consumed (parked stock), Demand Unmet Rate
@@ -90,7 +91,7 @@ Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (
 - **Plans:** PLN-101 (-190u)
 
 ### C. Pack Config → Under / Over Allocation
-- **Insight id:** `packConfig` · **Playbook:** `cardPackConfig`
+- **Insight id:** `packConfig` · **Action:** `cardPackConfig`
 - **Severity:** Warning · **Tone:** amber · **Type:** tree
 - **Scope:** 7 plans · 1,271 combos · 6,977 units off pack multiple
 - **Related KPI:** **Demand Unmet Rate (47.6%)**, Revenue at Risk ($221)
@@ -101,7 +102,7 @@ Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (
 - **Plans:** PLN-092 (-4,156u), PLN-104 (-450u)
 
 ### D. DC Inventory & Multi-DC Sourcing
-- **Insight id:** `dcInventory` · **Playbook:** `cardDcInventory`
+- **Insight id:** `dcInventory` · **Action:** `cardDcInventory`
 - **Severity:** Critical · **Tone:** rose · **Type:** poTable · **Badge:** HIGH SEVERITY ANOMALY
 - **Scope:** 4 plans · 16 product-store combos; primary DC over-bound/exhausted → secondary-DC fallback
 - **Related KPI:** **DC Consumption & Sourcing (9.3%, ⚠ primary over-bound + 1,240u fallback)**, Revenue at Risk
@@ -113,7 +114,7 @@ Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (
 - **Rows:** KS1002733 001 (Exhausted, DC-01 → DC-02 +820 → PO-2026-X992), KS1002698 420 (Over-Bound, DC-01 → DC-02 +420 → PO-2026-X411)
 
 ### E. Size Curve Deviation
-- **Insight id:** `sizeCurve` · **Playbook:** `cardSizeCurve`
+- **Insight id:** `sizeCurve` · **Action:** `cardSizeCurve`
 - **Severity:** Warning · **Tone:** amber · **Type:** tree
 - **Scope:** 1 plan · shipped profile deviates from baseline
 - **Related KPI:** Revenue at Risk (sell-through erosion)
@@ -123,17 +124,22 @@ Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (
 - **Lost sales:** Sell-through risk
 - **Plans:** PLN-108
 
-### F. Store Capacity Soft Constraint
-- **Insight id:** `storeCapacity` · **Playbook:** `cardStoreCapacity`
-- **Severity:** Warning (escalates to critical when util ≥ 100%) · **Tone:** amber · **Type:** capacityTable · **Badge:** SOFT LIMIT NEARING
-- **Scope:** 3 plans · 9 of 141 stores nearing/over capacity
+### F. Store Capacity & Total Store Velocity
+- **Insight id:** `storeCapacity` · **Action:** `cardStoreCapacity`
+- **Severity:** Critical (WARNING baseline; CRITICAL when a store breaches BOTH physical capacity ≥ 100% and an extreme WOS bound) · **Tone:** teal · **Type:** capacityTable · **Badge:** MACRO STORE HEALTH
+- **Scope:** Macro store health — 12 stores flagged · 5 over physical capacity · 4 bloated (>20 WOS) · 1,842 total overflow units
 - **Related KPI:** **Stores Near Capacity (9)**
-- **What:** Projected fill (On Hand + On Order + In Transit + New Allocation) is nearing/exceeding physical store capacity — a soft-constraint breach allocation did not hard-stop.
-- **Why:** Capacity is a soft limit, so the runner can allocate past it; overfilled stores strand stock in the backroom instead of on the floor.
-- **Next step:** Trim/stagger new allocation, or set up a store-to-store transfer to relieve overfill before dispatch.
-- **Lost sales:** Fill / handling risk
-- **Capacity UI:** `CapacityTable` — per-store stacked bar (On Hand / On Order / In Transit / New Allocation) against a dashed 100% ceiling; **Over Capacity** (rose, pulsing) / **Near Capacity** (amber) / **Within Limit** (emerald) status chip with utilization %.
-- **Rows:** ks001a04 (over by 480u), ks007a03 (95.6%), ks010a02 (over by 80u), ks016a03 (88.0%)
+- **Financial exposure:** Fill / Handling Risk + ~$530K Capital Lockup (backroom overflow risk combined with capital tied up in slow-turning stores).
+- **What:** Stores where projected allocations breach physical backroom capacity (On Hand + On Order + In Transit + New Allocation) and/or aggregate cover across all auto-replenished SKUs falls outside the healthy store-velocity band (Store WOS > 20 or < 2).
+- **Why:** Physical overfill strands stock in backrooms off the sales floor; store-wide WOS bloat ties up working capital and slows total store inventory turns — macro problems item-by-item tweaks cannot solve.
+- **Next step:** Apply macro store-level fixes before dispatch — trim/stagger new allocations, place a temporary store-wide auto-replen hold, or adjust the store velocity multiplier in the engine.
+- **Macro UI (`CapacityTable` + `CapacityRow`):** each store renders TWO side-by-side indicators —
+  - **Indicator 1 · Physical Space:** radial capacity gauge % + stacked inventory bar (On Hand / On Order / In Transit / New Allocation) with a 100% ceiling marker and red diagonal hatching for overflow units.
+  - **Indicator 2 · Total Store Velocity:** aggregate `Store WOS = (total replen On-Hand + On-Order + In Transit + New Allocation) / total forecasted weekly replen sales`, plotted against the 2–16 healthy band with status chips **Bloated (>20 WOS)** / **Slow Turn (>16 WOS)** / **Rapid Turn (<2 WOS)** and a capital-lockup readout.
+  - **Macro action triggers:** contextual tags — **Trim Allocation**, **Freeze Auto-Replen**, **Adjust Store Multiplier**.
+  - **Dual-breach** stores carry a pulsing **Critical · Dual Breach** badge.
+- **Row schema:** `{ id, name, tier, plans, capacity, onHand, onOrder, inTransit, newAllocation, weeklySales, storeWos, note }`
+- **Ranking:** Primary = dual breach (physical ≥ 100% AND velocity bound); Secondary = total overflow units; Tertiary = Store WOS deviation from band. Display capped at **Top 10 of M** with the "Export full list" footer.
 
 ---
 
@@ -142,7 +148,7 @@ Each **Insight Handbook** bucket (`insights[]`) pairs with a **Playbook** card (
 FWOS < 1 = a plan has stores with less than one forward week of supply — imminent stockout. Surfaced two ways:
 
 1. **KPI line** on *Demand Unmet Rate*: "23 of 141 stores under 1-wk cover".
-2. **Per-plan flag chip** in the Handbook metrics row (`FwosFlag` in `InsightsStudio.jsx`) — glowing rose→red pill with pinging dot + at-risk store count. Renders only when `fwos < 1`.
+2. **Per-plan flag chip** in the Evidence metrics row (`FwosFlag` in `InsightsStudio.jsx`) — glowing rose→red pill with pinging dot + at-risk store count. Renders only when `fwos < 1`.
 
 Data: `worklist[]` fields `fwos` + `fwosStores`.
 
@@ -166,11 +172,12 @@ Data: `worklist[]` fields `fwos` + `fwosStores`.
 | `triage` | Triage Ribbon counts |
 | `validationChecks[]` | Triage Ribbon check table |
 | `kpis[]` | Overview cards |
-| `playbook[]` | Playbook action cards |
-| `insights[]` | Insight Handbook directories |
+| `playbook[]` | Action narratives (What → Why → Next) merged into cards |
+| `insights[]` | Insight evidence directories |
+| `insightCards[]` | Merged action + evidence cards (join of the two above) |
 | `worklist[]` | Plan-level metrics (rate, unmet, revenue, status, fwos, fwosStores) |
-| `getPlanMeta(id)` | Looks up a plan's metrics for the Handbook rows |
-| `buildInsightExport(bucketId)` | Shared CSV export for Playbook + Handbook |
+| `getPlanMeta(id)` | Looks up a plan's metrics for the evidence rows |
+| `buildInsightExport(bucketId)` | Shared CSV export for every insight card |
 | `getWorklistSummary(excludeIds)` | Risked vs safe rollup (unmet + revenue totals) |
 
 ---
@@ -190,14 +197,14 @@ Data: `worklist[]` fields `fwos` + `fwosStores`.
 
 ## Adding a new insight bucket (scales to N dimensions)
 
-The Handbook is data-driven — a new bucket needs **no per-id UI wiring**. To add one:
+The Insights section is data-driven — a new bucket needs **no per-id UI wiring**. To add one:
 
 1. **Append to `insights[]`** in `mockData.js` with:
    - `id`, `title`, `planCount` (or omit), `macro`, `directoryTitle`, `directoryHint`.
    - `tone` — an accent token from the registry (`sky`, `slate`, `rose`, `amber`, `teal`, `indigo`, `violet`, `emerald`, `cyan`, `fuchsia`, `orange`, `blue`). Drives the accent dot.
    - `iconName` — a key from the icon registry (`arrowUp`, `lock`, `puzzle`, `alert`, `ruler`, `warehouse`, `network`, `timer`, `packageX`, `dollar`, `store`, `triangle`, `folder`).
    - `type` — `tree` (Plan → Style-Color → Store), `poTable`, or `capacityTable`.
-2. *(Optional)* add a matching **Playbook** card in `playbook[]` sharing an `exportBucketId`, and a **Triage** check label.
+2. *(Optional)* add a matching **action narrative** in `playbook[]` sharing an `exportBucketId` (it auto-merges into the bucket's card via `insightCards[]`), and a **Triage** check label.
 3. If the bucket needs a **new color or icon**, register it once in `ACCENT_DOT` / `ICONS` at the top of `InsightsStudio.jsx` — then it's reusable by every future bucket.
 
 Registries live in `InsightsStudio.jsx`: `ACCENT_DOT` (tone → dot color), `ICONS` (iconName → lucide component), `DRAWER_STYLE` (shared neutral chrome). `buildInsightExport()` handles `tree` / `poTable` / `capacityTable`; a brand-new `type` needs a renderer + an export branch. The current colors/icons already cover **5+ additional buckets** with zero new registration.

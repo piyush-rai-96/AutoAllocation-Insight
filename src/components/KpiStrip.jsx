@@ -79,8 +79,9 @@ function KpiCard({ kpi }) {
 
       <div className="relative flex items-start justify-between">
         <div className="flex items-center gap-2.5">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-inner ring-1 ring-slate-200/60 ${accent.icon}`}>
+          <div className={`relative flex h-9 w-9 items-center justify-center rounded-xl shadow-inner ring-1 ring-slate-200/60 transition-transform duration-300 group-hover:scale-105 ${accent.icon}`}>
             <Icon className="h-4 w-4" />
+            <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-white/40 to-transparent" />
           </div>
           <h3 className="max-w-[7rem] text-[11px] font-semibold uppercase leading-tight tracking-wider text-slate-500">
             {kpi.title}

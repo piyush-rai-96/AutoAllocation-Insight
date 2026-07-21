@@ -17,9 +17,9 @@ A visual **diagnostic & triage console** for retail auto-allocation cycles. It r
 Given the output of an auto-allocation run (plans → style-colors → stores → sizes), the agent:
 
 1. **Scores the cycle** — how many plans are safe, constrained, urgent.
-2. **Diagnoses root causes** — runs 6 diagnostic checks and groups affected plans into *insight buckets* (Min Constraints, Max Capping, Pack Config, DC Inventory & Multi-DC Sourcing, Size Curve, Store Capacity).
+2. **Diagnoses root causes** — runs 6 diagnostic checks and groups affected plans into *insight buckets* (Min Constraints, Max Capping, Pack Config, DC Inventory & Multi-DC Sourcing, Size Curve, Store Capacity & Total Store Velocity).
 3. **Quantifies impact** — 5 headline KPIs (units, DC consumption/sourcing, unmet rate, revenue at risk, stores near capacity) plus FWOS (forward-weeks-of-supply) urgency flags.
-4. **Recommends fixes** — a prioritized playbook written as *What's happening → Why it matters → What to do next*.
+4. **Recommends fixes** — each insight card leads with a prioritized action written as *What's happening → Why it matters → What to do next*.
 5. **Lets the operator act** — drill from plan to the exact store/size, copy IDs/POs, and export any bucket as CSV.
 
 It is intentionally **read-only**: it explains and recommends; it does not mutate the allocation.
@@ -50,14 +50,13 @@ AutoAllocation Insights/
 ├── package.json
 ├── tailwind.config.js  ← custom keyframes/animations + shadows
 └── src/
-    ├── App.jsx         ← app bar + section layout (Triage → KPIs → Playbook → Handbook)
+    ├── App.jsx         ← app bar + section layout (Triage → KPIs → Insights)
     ├── data/
     │   └── mockData.js ← single source of truth for all sections
     └── components/
         ├── TriageRibbon.jsx    ← cycle scorecard + diagnostic checks + filters
         ├── KpiStrip.jsx        ← 5 headline KPI cards
-        ├── Playbook.jsx        ← ranked What→Why→Next action cards
-        ├── InsightsStudio.jsx  ← the Insight Handbook (drawers, trees, tables)
+        ├── InsightsStudio.jsx  ← the unified Insights section (action + evidence drawers)
         ├── SectionHeader.jsx   ← shared section title
         ├── Sparkline.jsx       ← inline KPI trend line
         ├── Tooltip.jsx         ← hover tooltip
@@ -66,20 +65,20 @@ AutoAllocation Insights/
         └── ValidationChecks.jsx← (auxiliary) checks view
 ```
 
-`App.jsx` renders four sections in order: **Triage Ribbon → Overview (KPIs) → Smart Actions Playbook → Insight Handbook**, wrapped in a `ToastProvider`.
+`App.jsx` renders three sections in order: **Triage Ribbon → Overview (KPIs) → Insights & Smart Actions**, wrapped in a `ToastProvider`.
 
 ---
 
-## 4. The four console sections
+## 4. The three console sections
 
 ### 4.1 Triage Ribbon (`TriageRibbon.jsx`)
-The cycle scorecard. Three clickable cards — **Total Plans (10)**, **No Issues / Safe (2)**, **Plans with Issues (8)** — act as filters that scroll to and scope the Handbook. Also lists the **6 diagnostic checks** run against every plan:
+The cycle scorecard. Three clickable cards — **Total Plans (10)**, **No Issues / Safe (2)**, **Plans with Issues (8)** — act as filters that scroll to and scope the Insights section. Also lists the **6 diagnostic checks** run against every plan:
 
 1. Min Constraints Influencing Allocation
 2. Max Capping Allocation
 3. Pack Config → Under / Over Allocation
 4. DC Inventory & Multi-DC Sourcing
-5. Store Capacity Soft Constraint
+5. Store Capacity & Total Store Velocity
 6. Size Curve Deviation
 
 Data: `triage` + `worklist` in `mockData.js`.
@@ -97,19 +96,17 @@ Data: `triage` + `worklist` in `mockData.js`.
 
 Data: `kpis[]`. Icons resolved via a string `iconMap`; colors via an `accentMap`.
 
-### 4.3 Smart Actions Playbook (`Playbook.jsx`)
-Ranked, collapsible action cards — one per insight bucket — each structured as **What → Why → Next step**, with a lost-sales estimate and a **trigger** that exports the matching bucket. Cards pair to Handbook buckets via a shared `exportBucketId`.
+### 4.3 Insights & Smart Actions (`InsightsStudio.jsx`)
+The merged action + evidence view — one collapsible **card per insight bucket** with three-level progressive disclosure:
 
-Data: `playbook[]`.
+1. **Collapsed** — title, severity chip, lost-sales estimate, and the *What* one-liner.
+2. **Action** (on expand) — the **What → Why → Next step** narrative + lost-sales callout + a primary **Export** trigger.
+3. **Evidence** (nested "View affected plans & stores" toggle) — a macro-impact line and one of three body renderers based on `type`:
+   - **`tree`** — Plan → Style-Color → Store hierarchy (Min Constraints, Max Capping, Pack Config, Size Curve).
+   - **`poTable`** — DC-constrained components with a **Multi-DC sourcing flow** strip (DC Inventory).
+   - **`capacityTable`** — macro store-health rows with dual indicators: Physical Space + Total Store Velocity (Store Capacity & Total Store Velocity).
 
-### 4.4 Insight Handbook (`InsightsStudio.jsx`)
-The detail view — expandable diagnostic **drawers**, one per bucket. Each drawer shows a macro-impact line, a directory title/hint, an **Export** button, and one of three body renderers based on `type`:
-
-- **`tree`** — Plan → Style-Color → Store hierarchy (Min Constraints, Max Capping, Pack Config, Size Curve).
-- **`poTable`** — DC-constrained components with a **Multi-DC sourcing flow** strip (DC Inventory).
-- **`capacityTable`** — per-store capacity utilization bars (Store Capacity).
-
-Data: `insights[]`.
+The section header banner shows total/critical/warning counts and an **Expand/Collapse all** control. Data: `insightCards[]` — a selector that joins `insights[]` (evidence) with `playbook[]` (action narrative) on `exportBucketId`.
 
 ---
 
@@ -122,7 +119,7 @@ Data: `insights[]`.
 | Pack Config (`packConfig`) | tree | indigo | Warning | Case-pack rounding blocks 6,977 units (main OOS driver) |
 | DC Inventory & Multi-DC Sourcing (`dcInventory`) | poTable | rose | Critical | Primary DC over-bound 112% → 1,240u fallback from secondary DC |
 | Size Curve (`sizeCurve`) | tree | amber | Warning | Over-shipped XL / under-shipped Small |
-| Store Capacity (`storeCapacity`) | capacityTable | teal | Warning | Projected fill nearing/over store capacity (9/141 stores) |
+| Store Capacity & Total Store Velocity (`storeCapacity`) | capacityTable | teal | Critical | Macro store health: 12 flagged — 5 over physical capacity, 4 bloated (>20 WOS) |
 
 ---
 
@@ -131,12 +128,12 @@ Data: `insights[]`.
 ### Multi-DC Sourcing Flow (`DcSourcingFlow`)
 Inside the DC Inventory drawer: a **primary DC depletion gauge** (pulsing red when over-bound) → animated fallback arrow → **secondary DC draw gauge**. Each PO row also carries a rose *primary-DC status* chip and a violet *"Sourced from … · +units"* fallback chip.
 
-### Store Capacity utilization (`CapacityTable` / `CapacityRow`)
-Per-store card with:
-- A **radial utilization gauge** (`CapacityGauge`) — SVG ring, color-banded (rose/amber/emerald), red glow when over-capacity.
-- A **stacked, gradient bar** (On Hand / On Order / In Transit / New Allocation) that animates in (`barFill`), against a **dashed 100% ceiling** marker.
-- An **overflow spill zone** (red diagonal hatch past the ceiling) and a pulsing **Over Capacity** chip (`overflowPulse`).
-- A **headroom / +over** readout and a table-level **summary strip** (Over / Near / Within counts).
+### Macro Store Health (`CapacityTable` / `CapacityRow`)
+Per-store card evaluating each store as a total entity on two side-by-side indicators:
+- **Indicator 1 · Physical Space** — a **radial utilization gauge** (`CapacityGauge`, rose/amber/emerald, red glow when over-capacity) + a **stacked gradient bar** (On Hand / On Order / In Transit / New Allocation, `barFill`) against a **100% ceiling** with red diagonal overflow hatching.
+- **Indicator 2 · Total Store Velocity** (`StoreVelocityIndicator`) — aggregate **Store WOS** (total replen cover / weekly replen sales) plotted on the 2–16 healthy band with **Bloated (>20 WOS) / Slow Turn (>16 WOS) / Rapid Turn (<2 WOS)** status chips and a capital-lockup readout.
+- **Macro action triggers** — Trim Allocation, Freeze Auto-Replen, Adjust Store Multiplier. Dual-breach stores carry a pulsing **Critical · Dual Breach** badge; rows rank by dual breach → overflow units → WOS deviation, capped at Top 10 with an export-all footer.
+- A table-level **summary strip** (Over Physical Capacity / Bloated >20 WOS / Rapid Turn <2 WOS / Dual Breach counts).
 
 ### FWOS < 1 urgency
 Stores with less than one forward week of supply are the leading edge of unmet demand. Surfaced on the *Demand Unmet Rate* KPI and as per-plan glowing flag chips (`fwos` / `fwosStores` on `worklist[]`).

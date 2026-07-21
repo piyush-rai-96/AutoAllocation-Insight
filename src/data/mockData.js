@@ -5,16 +5,25 @@ export const triage = {
   allCycles: {
     count: 10,
     label: 'Active Plans',
-    subtext: 'Covers 20 Products | 141 Stores',
+    subtext: 'Across 20 products this cycle',
+    styleColors: 64,
+    stores: 141,
+    scopeLabel: 'in scope',
   },
   safe: {
     historical: 0,
     simulated: 2,
     subtext: '0 shortfalls or alerts',
+    styleColors: 5,
+    stores: 30,
+    scopeLabel: 'clean',
   },
   issues: {
     count: 8,
     subtext: 'Constrained or Over-Allocated',
+    styleColors: 59,
+    stores: 111,
+    scopeLabel: 'impacted',
   },
   urgent: {
     count: 4,
@@ -30,8 +39,8 @@ export const kpis = [
     value: '5,894',
     accent: 'slate',
     lines: [
-      { label: 'Rate', value: '53.8%' },
-      { label: 'Demand Pool', value: '10,957' },
+      { label: 'Allocation Rate', value: '53.8%' },
+      { label: 'Demand Requirement', value: '10,957' },
     ],
     spark: [42, 48, 45, 52, 50, 58, 54],
     delta: '+6.2%',
@@ -45,11 +54,11 @@ export const kpis = [
     value: '9.3%',
     accent: 'amber',
     warning:
-      'System Flag: Primary DC (DC-01 · North) is over-bound at 112%; allocation is falling back to DC-02 · Central to keep plans moving.',
+      'System Flag: Primary DC (DC-01 · North) is fully consumed (100%) and exhausted; allocation is falling back to DC-02 · Central to keep plans moving.',
     lines: [
       { label: '', value: '5,894 / 63,108 units drawn · 57,214 left' },
-      { label: 'Primary', value: 'DC-01 · North over-bound 112%', warn: true },
-      { label: 'Fallback', value: '1,240u (21%) from DC-02 · Central' },
+      { label: 'Primary % Consumed', value: '100% · DC-01 · North (exhausted)', warn: true },
+      { label: 'Secondary % Consumed', value: '21% · DC-02 · Central (1,240u fallback)' },
     ],
     spark: [4, 5, 6, 6, 7, 8, 9.3],
     delta: '+2.1pt',
@@ -67,7 +76,6 @@ export const kpis = [
     lines: [
       { label: 'Demand Met', value: '52.4%' },
       { label: 'FWOS < 1', value: '23 of 141 stores under 1-wk cover', warn: true },
-      { label: '', value: '3-run consecutive increase', warn: true },
     ],
     spark: [31, 34, 38, 40, 42, 45, 47.6],
     delta: '+3 runs',
@@ -99,7 +107,7 @@ export const kpis = [
     accent: 'indigo',
     lines: [
       { label: 'Of', value: '141 stores in cycle' },
-      { label: 'Breach', value: '2 stores project over 100% fill', warn: true },
+      { label: '% Breach over Capacity', value: '107% peak fill', warn: true },
     ],
     spark: [2, 3, 4, 5, 6, 8, 9],
     delta: '+3 stores',
@@ -193,21 +201,219 @@ export const playbook = [
   },
   {
     id: 'cardStoreCapacity',
-    severity: 'warning',
-    title: 'Store Capacity Soft Constraint',
+    severity: 'critical',
+    title: 'Store Capacity & Total Store Velocity',
     what:
-      'For 9 of 141 stores, projected fill (On Hand + On Order + In Transit + New Allocation) is nearing or exceeding physical store capacity across 3 plans — a soft-constraint breach that allocation did not hard-stop.',
+      'Stores are evaluated on two separate lenses. Physical Capacity: 5 stores breach backroom capacity (projected On Hand + On Order + In Transit + New Allocation past the ceiling), 1,842 units overflowing. Store Velocity (FWOS): 7 stores need review with thin forward cover (<10 FWOS), 3 sit in the Fine band (10–20), and 4 hold Healthy cover (>20).',
     why:
-      'Store capacity is a soft limit, so the runner can allocate past it. Overfilled stores cannot shelf the inventory, leading to backroom congestion, delayed processing, and stock effectively stranded off the floor.',
+      'Physical overfill strands stock in backrooms off the sales floor, while thin forward cover (<10 FWOS) exposes stores to store-wide stockouts before the next replenishment lands. Both are macro store-health signals that item-by-item allocation tweaks cannot resolve.',
     next:
-      'Review the near-capacity stores: trim or stagger the new allocation, or set up a store-to-store transfer to relieve the overfill before dispatch.',
+      'Work the two lists before dispatch — for over-capacity stores trim or stagger new allocations; for thin-cover (Needs Review) stores review store-wide replenishment or adjust the store velocity multiplier in the engine.',
     lostSales:
-      'Overfilled stores strand incoming units in the backroom instead of on the floor, delaying sell-through at the very stores already at their limit.',
-    lostSalesValue: 'Fill / handling risk',
-    trigger: 'Export the Near-Capacity Stores List',
+      'Overfilled stores strand ~1,842 units in backrooms off the floor, while 7 thin-cover stores risk store-wide stockouts before the next replen cycle.',
+    lostSalesValue: 'Fill / Handling Risk + Stockout Risk (7 stores)',
+    trigger: 'Export the Macro Store Health List',
     exportBucketId: 'storeCapacity',
   },
 ]
+
+// ─────────────────────────────────────────────────────────────────────────
+// Deep directory generator. Produces a realistic tree so the UI's
+// "Top 10 · export all" progressive disclosure is demonstrable at every level:
+// 12 plans (top 10 shown), the lead plan carries 12 style-colors, and its lead
+// style-color spans 12 stores. Everything below the cap is one export away.
+// A single config object lets every tree bucket reuse this generator with its
+// own domain phrasing. Plan IDs are reused from the worklist so plan-level
+// metric chips (rate / unmet / revenue) still resolve via getPlanMeta.
+// ─────────────────────────────────────────────────────────────────────────
+const DEEP_GROUPS = ['Fashion Acc', 'Core Acc', 'Seasonal', 'Footwear', 'Denim']
+const DEEP_SIZES = ['S, M', 'M, L', 'S, M, L', 'M, L, XL', 'L, XL']
+const DEEP_PLAN_IDS = [
+  'PLN-092', 'PLN-104', 'PLN-124', 'PLN-127', 'PLN-118', 'PLN-101',
+  'PLN-121', 'PLN-108', 'PLN-131', 'PLN-134', 'PLN-137', 'PLN-140',
+]
+
+const pad = (n, w = 2) => String(n).padStart(w, '0')
+
+function buildDeepStore(planSeq, styleSeq, i, units, cfg) {
+  const seq = `${cfg.idPrefix}${pad(planSeq)}${pad(styleSeq)}${pad(i + 1)}`
+  return {
+    id: `ks${seq}`,
+    name: '000-outlet-store',
+    units: `${cfg.sign}${units} units`,
+    sizes: DEEP_SIZES[i % DEEP_SIZES.length],
+    note: cfg.note(units),
+  }
+}
+
+function buildDeepStyle(planSeq, styleSeq, storeCount, cfg) {
+  const stores = Array.from({ length: storeCount }, (_, i) =>
+    buildDeepStore(planSeq, styleSeq, i, cfg.baseUnits - i * 22, cfg),
+  )
+  const total = Math.abs(stores.reduce((sum, s) => sum + parseNum(s.units), 0))
+  return {
+    code: `KS10${pad(cfg.codeBase + planSeq * 9 + styleSeq, 4)} ${pad(((styleSeq + 1) * 37) % 999, 3)}`,
+    group: DEEP_GROUPS[styleSeq % DEEP_GROUPS.length],
+    summary: `${cfg.styleVerb} ${storeCount} ${storeCount === 1 ? 'store' : 'stores'} (${cfg.sign}${total.toLocaleString()} units)`,
+    stores,
+  }
+}
+
+// Build a 12-plan tree; the lead plan is the deep one (12 style-colors, and its
+// lead style-color spans 12 stores) so all three Top-10 caps are demonstrable.
+function buildDeepPlans(cfg) {
+  return DEEP_PLAN_IDS.map((id, p) => {
+    const styleCount = p === 0 ? 12 : ((p + 1) % 3) + 1
+    const styles = Array.from({ length: styleCount }, (_, s) => {
+      const storeCount = p === 0 && s === 0 ? 12 : ((s + p) % 4) + 1
+      return buildDeepStyle(p, s, storeCount, cfg)
+    })
+    const total = Math.abs(
+      styles.reduce((sum, st) => sum + st.stores.reduce((a, b) => a + parseNum(b.units), 0), 0),
+    )
+    const noun = styleCount === 1 ? cfg.clusterNoun : cfg.clusterNounPlural
+    return {
+      id,
+      summary: `Contains ${styleCount} ${noun} | ${cfg.sign}${total.toLocaleString()} ${cfg.unitWord}`,
+      styles,
+    }
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Macro Store Health directory generator (Bucket #6: Store Capacity & Total
+// Store Velocity). Produces 14 stores evaluated as total entities on TWO macro
+// indicators so the capacityTable can demonstrate the dual-indicator view plus
+// the Top-10 ranking with a one-click "export all":
+//
+//   Indicator 1 — Physical Space: utilization % from
+//     (On Hand + On Order + In Transit + New Allocation) vs. store capacity.
+//   Indicator 2 — Total Store Velocity: aggregate Store Weeks-of-Supply (WOS)
+//     = total replen inventory / total forecasted weekly replen sales.
+//     Healthy band is 2–16 WOS; > 16 = Slow Turn (capital lockup),
+//     > 20 = Bloated, < 2 = Rapid Turn (stockout risk).
+//
+// Row shape (capacityTable):
+//   { id, name, tier, plans, capacity, onHand, onOrder, inTransit,
+//     newAllocation, weeklySales, storeWos, note }
+// ─────────────────────────────────────────────────────────────────────────
+const CAPACITY_PLAN_IDS = [
+  'PLN-092', 'PLN-104', 'PLN-124', 'PLN-118', 'PLN-127', 'PLN-101',
+  'PLN-121', 'PLN-108', 'PLN-131', 'PLN-137', 'PLN-092', 'PLN-104',
+  'PLN-124', 'PLN-118',
+]
+
+// Target physical utilization ratios (projected / capacity), highest first.
+const CAPACITY_UTILS = [
+  1.19, 1.12, 1.07, 1.04, 1.01, 0.97, 0.955, 0.93, 0.91, 0.90, 0.88, 0.86, 0.83, 0.79,
+]
+
+// Aggregate Store WOS (total replen cover) per store — index-aligned to utils.
+// Mix of Bloated (>20), Slow (>16), Healthy (2–16) and Rapid (<2) turns.
+const CAPACITY_WOS = [24, 22, 9, 1.6, 12, 21, 6, 18, 1.4, 8, 26, 5, 3, 17]
+
+// Store tier / cluster labels, index-aligned.
+const CAPACITY_TIERS = [
+  'Flagship · North', 'Standard · Metro', 'Outlet · East', 'Express · Hub',
+  'Standard · West', 'Flagship · Central', 'Standard · South', 'Outlet · North',
+  'Express · Metro', 'Standard · East', 'Flagship · West', 'Outlet · Central',
+  'Standard · Hub', 'Outlet · South',
+]
+
+function buildCapacityRows() {
+  return CAPACITY_UTILS.map((util, i) => {
+    const capacity = 4400 - i * 120
+    const projected = Math.round(capacity * util)
+    // Split projected fill across the four components with realistic weights.
+    const onHand = Math.round(projected * 0.26)
+    const onOrder = Math.round(projected * 0.14)
+    const inTransit = Math.round(projected * 0.11)
+    const newAllocation = projected - onHand - onOrder - inTransit
+    const overUnits = projected - capacity
+    const pct = (util * 100).toFixed(1)
+    const storeWos = CAPACITY_WOS[i]
+    // Weekly replen sales implied by the target WOS (numerator = total cover).
+    const weeklySales = Math.max(Math.round(projected / storeWos), 1)
+    const physicalNote =
+      overUnits > 0
+        ? `Fill exceeds capacity by ${overUnits.toLocaleString()} units (${pct}%) — new allocation is a soft breach.`
+        : util >= 0.9
+          ? `Fill at ${pct}% of capacity — within the soft-warning band.`
+          : `Fill at ${pct}% of capacity — approaching the soft limit.`
+    const velocityNote =
+      storeWos < 10
+        ? ` Store-wide forward cover is thin at ${storeWos} FWOS — needs review before store-wide stockouts.`
+        : storeWos <= 20
+          ? ` Store-wide forward cover is fine at ${storeWos} FWOS — adequate, monitor.`
+          : ` Store-wide forward cover is healthy at ${storeWos} FWOS — ample buffer.`
+    return {
+      id: `ks${pad(i + 1, 3)}a${pad((i % 5) + 1)}`,
+      name: '000-outlet-store',
+      tier: CAPACITY_TIERS[i],
+      plans: CAPACITY_PLAN_IDS[i],
+      capacity,
+      onHand,
+      onOrder,
+      inTransit,
+      newAllocation,
+      weeklySales,
+      storeWos,
+      note: `System Note: ${physicalNote}${velocityNote}`,
+    }
+  })
+}
+
+// Per-bucket phrasing for the shared deep-tree generator.
+const DEEP_CONFIGS = {
+  minConstraints: {
+    idPrefix: 'mn',
+    codeBase: 2700,
+    sign: '+',
+    baseUnits: 420,
+    unitWord: 'excess units',
+    clusterNoun: 'over-allocated style cluster',
+    clusterNounPlural: 'over-allocated style clusters',
+    styleVerb: 'Over-allocated at',
+    note: (u) =>
+      `System Note: Minimum floor forced ${u} excess units onto this slow channel, well above its trailing demand.`,
+  },
+  maxCapping: {
+    idPrefix: 'mx',
+    codeBase: 2600,
+    sign: '-',
+    baseUnits: 260,
+    unitWord: 'throttled units',
+    clusterNoun: 'capped style cluster',
+    clusterNounPlural: 'capped style clusters',
+    styleVerb: 'Capped at ceiling across',
+    note: (u) =>
+      `System Note: Configured max cap reached before demand was satisfied — ${u} units throttled at this store.`,
+  },
+  sizeCurve: {
+    idPrefix: 'sz',
+    codeBase: 3200,
+    sign: '-',
+    baseUnits: 180,
+    unitWord: 'skewed units',
+    clusterNoun: 'skewed size-curve deployment',
+    clusterNounPlural: 'skewed size-curve deployments',
+    styleVerb: 'Skewed profile across',
+    note: (u) =>
+      `System Note: Shipped size curve deviates from baseline demand history — ${u} units mis-profiled (XL over, Small under) at this store.`,
+  },
+  packConfig: {
+    idPrefix: 'pk',
+    codeBase: 2700,
+    sign: '-',
+    baseUnits: 340,
+    unitWord: 'shortfall units',
+    clusterNoun: 'broken style cluster',
+    clusterNounPlural: 'broken style clusters',
+    styleVerb: 'Impacting',
+    note: (u) =>
+      `System Note: Localized demand landed between pack multiples; rounding to the nearest full case left ${u} units of shelf demand unmet.`,
+  },
+}
 
 export const insights = [
   {
@@ -216,78 +422,12 @@ export const insights = [
     tone: 'sky',
     iconName: 'arrowUp',
     title: 'Min Constraints Influencing Allocation',
-    planCount: 3,
-    macro: '3 Plans | 1,194 SKU-Store-Size Combinations | 1,606 Excess Units Over-Allocated',
+    planCount: 12,
+    macro: '12 Plans | 1,194 SKU-Store-Size Combinations | 1,606 Excess Units Over-Allocated',
     directoryTitle: 'MINIMUM FLOOR ENFORCEMENT DIRECTORY',
     directoryHint: 'Rows where minimum floors pushed allocation above demand',
     type: 'tree',
-    plans: [
-      {
-        id: 'PLN-118',
-        summary: 'Contains 2 over-allocated style clusters | +980 excess units',
-        styles: [
-          {
-            code: 'KS1002740 110',
-            group: 'Core Acc',
-            summary: 'Over-allocated at 3 slow channels (+640 units)',
-            stores: [
-              {
-                id: 'ks012a01',
-                name: '000-outlet-store',
-                units: '+420 units',
-                sizes: 'S, M',
-                note:
-                  'System Note: Minimum floor is set to 6 units, but trailing demand averages 0.4 units/week. The floor forced 420 excess units onto the shelf.',
-              },
-              {
-                id: 'ks014a02',
-                name: '000-outlet-store',
-                units: '+220 units',
-                sizes: 'M, L',
-                note:
-                  'System Note: Binding minimum floor over-allocated this slow channel beyond localized demand.',
-              },
-            ],
-          },
-          {
-            code: 'KS1002755 001',
-            group: 'Fashion Acc',
-            summary: 'Over-allocated at 2 outlets (+340 units)',
-            stores: [
-              {
-                id: 'ks016a03',
-                name: '000-outlet-store',
-                units: '+340 units',
-                sizes: 'S, M, L',
-                note:
-                  'System Note: Minimum floor >1 held while trailing sales dropped below 1 unit/week, trapping stock at a low-velocity outlet.',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'PLN-124',
-        summary: 'Contains 1 over-allocated style cluster | +626 excess units',
-        styles: [
-          {
-            code: 'KS1002733 001',
-            group: 'Core Acc',
-            summary: 'Over-allocated at 4 slow channels (+626 units)',
-            stores: [
-              {
-                id: 'ks018a05',
-                name: '000-outlet-store',
-                units: '+626 units',
-                sizes: 'M, L, XL',
-                note:
-                  'System Note: Minimum floor rule forced 626 excess units across 4 low-velocity outlets versus baseline demand.',
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    plans: buildDeepPlans(DEEP_CONFIGS.minConstraints),
   },
   {
     id: 'maxCapping',
@@ -295,33 +435,12 @@ export const insights = [
     tone: 'slate',
     iconName: 'lock',
     title: 'Max Capping Allocation',
-    planCount: 2,
-    macro: '2 Plans | 312 combinations reached configured ceilings | 190 units throttled',
+    planCount: 12,
+    macro: '12 Plans | 312 combinations reached configured ceilings | 190 units throttled',
     directoryTitle: 'CEILING ENFORCEMENT DIRECTORY',
     directoryHint: 'Rows where max caps throttled allocation',
     type: 'tree',
-    plans: [
-      {
-        id: 'PLN-101',
-        summary: 'Contains 2 capped style clusters | 190 throttled units',
-        styles: [
-          {
-            code: 'KS1002698 420',
-            group: 'Core Acc',
-            summary: 'Capped at store ceiling (-190 units)',
-            stores: [
-              {
-                id: 'ks002a05',
-                name: '000-outlet-store',
-                units: '-190 units',
-                sizes: 'L, XL',
-                note: 'System Note: Configured max cap reached before demand was satisfied.',
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    plans: buildDeepPlans(DEEP_CONFIGS.maxCapping),
   },
   {
     id: 'packConfig',
@@ -329,78 +448,12 @@ export const insights = [
     tone: 'indigo',
     iconName: 'puzzle',
     title: 'Pack Config → Under / Over Allocation',
-    planCount: 7,
-    macro: '7 Plans | 1,271 SKU-Store-Size Combinations | 6,977 Units Under/Over Pack Multiple',
+    planCount: 12,
+    macro: '12 Plans | 1,271 SKU-Store-Size Combinations | 6,977 Units Under/Over Pack Multiple',
     directoryTitle: 'RELATIONAL IMPACT DIRECTORY',
     directoryHint: 'Click rows to trace allocation nodes',
     type: 'tree',
-    plans: [
-      {
-        id: 'PLN-092',
-        summary: 'Contains 3 broken style clusters | 4,156 shortfall units',
-        styles: [
-          {
-            code: 'KS1002738 420',
-            group: 'Fashion Acc',
-            summary: 'Impacting 2 Outlets (-2,954 units)',
-            stores: [
-              {
-                id: 'ks001a04',
-                name: '000-outlet-store',
-                units: '-1,800 units',
-                sizes: 'S, M, L',
-                note:
-                  'System Note: Localized demand was 14 units, but the case-pack size is 12. The system rounded down to avoid over-shipping a full second box, leaving 2 units of demand unsatisfied at the shelf.',
-              },
-              {
-                id: 'ks007a03',
-                name: '000-outlet-store',
-                units: '-1,154 units',
-                sizes: 'M, L, XL',
-                note:
-                  'System Note: Regional demand landed between pack multiples; rounding to the nearest full case left residual shelf demand unmet.',
-              },
-            ],
-          },
-          {
-            code: 'KS1003245 001',
-            group: 'Fashion Acc',
-            summary: 'Impacting 1 Store (-1,202 units)',
-            stores: [
-              {
-                id: 'ks004a01',
-                name: '000-outlet-store',
-                units: '-1,202 units',
-                sizes: 'S, M',
-                note:
-                  'System Note: Demand fell short of a full case-pack multiple; hard-floor rounding suppressed the partial pack.',
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'PLN-104',
-        summary: 'Contains 1 broken style | 450 shortfall units',
-        styles: [
-          {
-            code: 'KS1002733 001',
-            group: 'Core Acc',
-            summary: 'Impacting 4 Stores (-450 units)',
-            stores: [
-              {
-                id: 'ks010a02',
-                name: '000-outlet-store',
-                units: '-450 units',
-                sizes: 'M, L',
-                note:
-                  'System Note: Aggregate store demand rounded below the next full pack multiple across 4 hubs.',
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    plans: buildDeepPlans(DEEP_CONFIGS.packConfig),
   },
   {
     id: 'dcInventory',
@@ -415,10 +468,30 @@ export const insights = [
     directoryHint: 'Trace constrained components to purchase orders and cross-DC fallback sourcing',
     type: 'poTable',
     // Multi-DC sourcing summary: primary DC drawn past its safe bound, forcing
-    // fallback allocation from a secondary DC to keep plans moving.
+    // fallback allocation from a secondary DC to keep plans moving. Each DC
+    // reports its % consumed (capped at 100) plus the raw draw, so the UI can
+    // give a clear network-wide overview of consumption and exhaustion.
     dcFlow: {
-      primary: { name: 'DC-01 · North', drawnPct: 112, status: 'Over-Bound' },
-      secondary: { name: 'DC-02 · Central', drawUnits: 1240, drawPct: 21 },
+      overview: {
+        totalDcs: 2,
+        exhaustedDcs: 1,
+        networkConsumedPct: 79,
+        fallbackUnits: 1240,
+      },
+      primary: {
+        role: 'Primary',
+        name: 'DC-01 · North',
+        consumedPct: 100,
+        drawnPct: 112,
+        status: 'Exhausted',
+      },
+      secondary: {
+        role: 'Secondary',
+        name: 'DC-02 · Central',
+        consumedPct: 21,
+        drawUnits: 1240,
+        status: 'Active Fallback',
+      },
     },
     rows: [
       {
@@ -457,97 +530,26 @@ export const insights = [
     tone: 'amber',
     iconName: 'ruler',
     title: 'Size Curve Deviation',
-    planCount: 1,
-    macro: 'Shipped profiles deviate from baseline store demand history | 1 Plan Affected',
+    planCount: 12,
+    macro: '12 Plans | Shipped profiles deviate from baseline store demand history',
     directoryTitle: 'RELATIONAL SIZE SKEW PROFILE',
     directoryHint: 'Trace skewed deployments to store level',
     type: 'tree',
-    plans: [
-      {
-        id: 'PLN-108',
-        summary: 'Contains 1 skewed style curve deployment',
-        styles: [
-          {
-            code: 'KS1003245 001',
-            group: 'Fashion Acc',
-            summary: 'Impacting 1 Store',
-            stores: [
-              {
-                id: 'ks001a04',
-                name: '000-outlet-store',
-                units: 'Over-allocated XL',
-                sizes: 'Under-allocated Small',
-                note:
-                  'System Note: Shipped size curve over-allocated XL and under-allocated Small at this store versus baseline demand history.',
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    plans: buildDeepPlans(DEEP_CONFIGS.sizeCurve),
   },
   {
     id: 'storeCapacity',
     icon: '📦',
     tone: 'teal',
     iconName: 'warehouse',
-    title: 'Store Capacity Soft Constraint',
-    subtitle: 'SOFT LIMIT NEARING',
-    planCount: 3,
-    macro: 'On Hand + On Order + In Transit + New Allocation approaching store capacity | 9 of 141 Stores Near Limit',
-    directoryTitle: 'STORE CAPACITY UTILIZATION DIRECTORY',
-    directoryHint: 'Projected fill = On Hand + On Order + In Transit + New Allocation vs. store capacity ceiling',
+    title: 'Store Capacity & Total Store Velocity',
+    subtitle: 'MACRO STORE HEALTH',
+    planCount: 12,
+    macro: '14 Stores Evaluated | 5 Over Physical Capacity (1,842 overflow units) | 7 Need Review (<10 FWOS) | 4 Healthy Cover (>20 FWOS)',
+    directoryTitle: 'MACRO STORE HEALTH DIRECTORY',
+    directoryHint: 'Two lenses — Capacity Breach (fill vs. capacity) and Store Velocity (FWOS: Healthy >20 · Fine 10–20 · Needs Review <10)',
     type: 'capacityTable',
-    rows: [
-      {
-        id: 'ks001a04',
-        name: '000-outlet-store',
-        plans: 'PLN-092',
-        capacity: 4200,
-        onHand: 1180,
-        onOrder: 640,
-        inTransit: 520,
-        newAllocation: 2140,
-        note:
-          'System Note: Projected fill exceeds capacity by 480 units. New allocation is a soft breach — trim or stagger delivery.',
-      },
-      {
-        id: 'ks007a03',
-        name: '000-outlet-store',
-        plans: 'PLN-092',
-        capacity: 3600,
-        onHand: 980,
-        onOrder: 410,
-        inTransit: 360,
-        newAllocation: 1690,
-        note:
-          'System Note: Projected fill at 95.6% of capacity — within the soft-warning band. Monitor before dispatch.',
-      },
-      {
-        id: 'ks010a02',
-        name: '000-outlet-store',
-        plans: 'PLN-104',
-        capacity: 2800,
-        onHand: 720,
-        onOrder: 300,
-        inTransit: 240,
-        newAllocation: 1420,
-        note:
-          'System Note: Projected fill exceeds capacity by 80 units. Consider a store-to-store transfer or delivery stagger.',
-      },
-      {
-        id: 'ks016a03',
-        name: '000-outlet-store',
-        plans: 'PLN-124',
-        capacity: 3000,
-        onHand: 610,
-        onOrder: 280,
-        inTransit: 190,
-        newAllocation: 1560,
-        note:
-          'System Note: Projected fill at 88.0% of capacity — approaching the soft limit. Headroom is thin.',
-      },
-    ],
+    rows: buildCapacityRows(),
   },
 ]
 
@@ -577,12 +579,12 @@ export const validationChecks = [
     notes: '1 plan concentrated over 75% of stock in a single outlet.',
   },
   {
-    check: 'Store Capacity Soft Breach',
+    check: 'Store Capacity & Velocity Breach',
     status: 'FLAGGED',
-    statusTone: 'warning',
-    severity: 'MEDIUM',
-    severityCount: 3,
-    notes: '9 stores project On Hand + On Order + In Transit + New Allocation near or over capacity.',
+    statusTone: 'critical',
+    severity: 'CRITICAL',
+    severityCount: 12,
+    notes: '5 stores over physical capacity (1,842 overflow units); 7 need review with thin forward cover (<10 FWOS).',
   },
   {
     check: 'Size Curve Deviation',
@@ -699,6 +701,50 @@ export const worklist = [
     fwos: 0.8,
     fwosStores: 4,
   },
+  {
+    id: 'PLN-131',
+    styles: '5 Styles',
+    channels: '29 Outlets',
+    rate: 54.6,
+    unmet: '860 Units',
+    revenue: '$104.00',
+    status: 'Constrained',
+    fwos: 1.1,
+    fwosStores: 3,
+  },
+  {
+    id: 'PLN-134',
+    styles: '4 Styles',
+    channels: '21 Outlets',
+    rate: 60.9,
+    unmet: '705 Units',
+    revenue: '$88.00',
+    status: 'Constrained',
+    fwos: 1.4,
+    fwosStores: 2,
+  },
+  {
+    id: 'PLN-137',
+    styles: '6 Styles',
+    channels: '33 Outlets',
+    rate: 49.3,
+    unmet: '1,120 Units',
+    revenue: '$131.00',
+    status: 'Urgent',
+    fwos: 0.9,
+    fwosStores: 4,
+  },
+  {
+    id: 'PLN-140',
+    styles: '3 Styles',
+    channels: '17 Outlets',
+    rate: 66.2,
+    unmet: '540 Units',
+    revenue: '$72.00',
+    status: 'Constrained',
+    fwos: 1.7,
+    fwosStores: 1,
+  },
 ]
 
 function parseNum(value) {
@@ -725,12 +771,19 @@ export function buildInsightExport(bucketId) {
   }
   if (item.type === 'capacityTable') {
     return [
-      'Store,Plans,Capacity,On Hand,On Order,In Transit,New Allocation,Projected Total,Utilization %',
+      'Store,Tier / Cluster,Plans,Capacity,On Hand,On Order,In Transit,New Allocation,Total Fill,Utilization %,Overflow Units,Weekly Replen Sales,Store FWOS,Velocity Status',
     ].concat(
       item.rows.map((r) => {
         const projected = r.onHand + r.onOrder + r.inTransit + r.newAllocation
         const util = ((projected / r.capacity) * 100).toFixed(1)
-        return `${r.id} ${r.name},${r.plans},${r.capacity},${r.onHand},${r.onOrder},${r.inTransit},${r.newAllocation},${projected},${util}%`
+        const overflow = Math.max(projected - r.capacity, 0)
+        const velocity =
+          r.storeWos > 20
+            ? 'Healthy (>20 FWOS)'
+            : r.storeWos >= 10
+              ? 'Fine (10–20 FWOS)'
+              : 'Needs Review (<10 FWOS)'
+        return `${r.id} ${r.name},${r.tier},${r.plans},${r.capacity},${r.onHand},${r.onOrder},${r.inTransit},${r.newAllocation},${projected},${util}%,${overflow},${r.weeklySales},${r.storeWos},${velocity}`
       }),
     )
   }
@@ -749,6 +802,28 @@ export function buildInsightExport(bucketId) {
   })
   return [header, ...lines]
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Unified insight cards — the single source the merged Insights section reads.
+// Each card joins its Handbook drill-down (`insights`, keyed by `id`) with its
+// Playbook action narrative (`playbook`, keyed by `exportBucketId`). Keeping
+// both source arrays intact means nothing else has to change; this selector is
+// purely additive. Buckets without a matching playbook entry still render (the
+// action fields simply come through undefined).
+// ─────────────────────────────────────────────────────────────────────────
+export const insightCards = insights.map((insight) => {
+  const action = playbook.find((p) => p.exportBucketId === insight.id)
+  return {
+    ...insight,
+    severity: action?.severity || 'warning',
+    what: action?.what,
+    why: action?.why,
+    next: action?.next,
+    lostSales: action?.lostSales,
+    lostSalesValue: action?.lostSalesValue,
+    trigger: action?.trigger,
+  }
+})
 
 // High-level summary of the worklist, split into risked vs safe plans.
 // `excludeIds` lets callers drop already fast-tracked/approved plans.

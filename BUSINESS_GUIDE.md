@@ -5,7 +5,7 @@ For a **business owner, merchandiser, or allocation lead** evaluating or impleme
 > **📚 Documentation map** — start here based on who you are:
 > - **`AGENT.md`** — full system & technical overview. Start here for the big picture.
 > - **`BUSINESS_GUIDE.md`** *(this file)* — business & implementation view: what each section does, all KPIs, data inputs, rollout.
-> - **`INSIGHTS.md`** — technical field-level mapping: insight ↔ playbook ↔ KPI, data sources, "add a bucket" guide.
+> - **`INSIGHTS.md`** — technical field-level mapping: insight ↔ action ↔ KPI, data sources, "add a bucket" guide.
 > - **`OVERVIEW.md`** — one-page plain-language business summary.
 
 ---
@@ -29,14 +29,13 @@ These are **invisible in a summary report**. This console makes them visible, qu
 
 ## 2. How to read the console (top to bottom)
 
-The screen is four stacked sections, ordered the way an operator works: **triage → measure → decide → drill in.**
+The screen is three stacked sections, ordered the way an operator works: **triage → measure → decide & drill in.**
 
 | # | Section | Purpose (business) | What you do here |
 |---|---------|--------------------|------------------|
 | 1 | **Triage Ribbon** | Is this cycle healthy? How many plans need attention? | Filter to "Plans with Issues" and jump straight to them |
 | 2 | **Overview (KPIs)** | How big is the problem, in units and dollars? | Read the 5 health metrics + urgency flags |
-| 3 | **Smart Actions Playbook** | What should I do, in priority order? | Follow ranked What → Why → Next-Step cards; export a work list |
-| 4 | **Insight Handbook** | Show me the exact plans/stores/sizes behind each issue | Drill down, copy IDs/POs, export CSV |
+| 3 | **Insights & Smart Actions** | What should I do, and what's the evidence? | Read ranked What → Why → Next-Step cards, then open **View affected plans & stores** to drill down, copy IDs/POs, export CSV |
 
 ---
 
@@ -50,9 +49,9 @@ Three headline cards that also act as filters:
 | **No Issues / Safe** | 2 | Plans with no shortfalls or alerts |
 | **Plans with Issues** | 8 | Constrained or over-allocated — needs review (4 are urgent) |
 
-Clicking a card **filters the Insight Handbook** to just those plans and scrolls to it.
+Clicking a card **filters the Insights section** to just those plans and scrolls to it.
 
-**Diagnostic checks** (run against every plan): the ribbon lists the 6 checks the engine output is screened against — Min Constraints, Max Capping, Pack Config, DC Inventory & Multi-DC Sourcing, Store Capacity Soft Constraint, Size Curve Deviation. Each check maps to an insight bucket (Section 6).
+**Diagnostic checks** (run against every plan): the ribbon lists the 6 checks the engine output is screened against — Min Constraints, Max Capping, Pack Config, DC Inventory & Multi-DC Sourcing, Store Capacity & Total Store Velocity, Size Curve Deviation. Each check maps to an insight bucket (Section 6).
 
 ---
 
@@ -73,22 +72,25 @@ Five cards. Each shows a headline value, supporting detail, a mini trend, and a 
 
 ---
 
-## 5. Section 3 — Smart Actions Playbook (what to do)
+## 5. Section 3 — Insights & Smart Actions (what to do + the evidence)
 
-A ranked list of recommended fixes. Each card is written as:
+One card per issue, ordered by severity (Critical first). Each card opens in layers so leaders can read the recommendation and analysts can drill into the proof — in the same place:
 
-- **What's happening** — the mechanical cause.
-- **Why it matters** — the business consequence (units, markdown/lost-sales exposure).
-- **What to do next** — a concrete, soft-recommended action.
-- **Trigger** — a one-click export of the affected work list.
+1. **Collapsed** — the issue title, a severity chip, the lost-sales estimate, and a one-line *What*.
+2. **Action** (on expand) — the recommendation, written as:
+   - **What's happening** — the mechanical cause.
+   - **Why it matters** — the business consequence (units, markdown/lost-sales exposure).
+   - **What to do next** — a concrete, soft-recommended action.
+   - a one-click **Export** of the affected work list.
+3. **Evidence** (nested **View affected plans & stores** toggle) — a macro-impact line and the drill-down directory (see Section 6).
 
-Cards are ordered by severity (Critical first). Each card is paired 1:1 with a Handbook bucket, so "read the recommendation → drill into the evidence → export the list" is a single flow.
+So "read the recommendation → drill into the evidence → export the list" is a single, uninterrupted flow within one card.
 
 ---
 
-## 6. Section 4 — The six insight buckets (the diagnoses)
+## 6. The six insight buckets (the diagnoses)
 
-Each bucket is a diagnosed root cause. It shows a macro-impact line, a drill-down directory, and an export.
+Each bucket is a diagnosed root cause, surfaced as the **Evidence** layer of its card. It shows a macro-impact line, a drill-down directory, and an export.
 
 | Bucket | Severity | What it means for the business | Recommended action |
 |--------|----------|--------------------------------|--------------------|
@@ -97,11 +99,11 @@ Each bucket is a diagnosed root cause. It shows a macro-impact line, a drill-dow
 | **Pack Config** | Warning | Case-pack rounding blocked **6,977 units** — the main driver of the 47.6% unmet rate | Review pack-rounding config (e.g. round to nearest pack) |
 | **DC Inventory & Multi-DC Sourcing** | Critical | Main DC over-drawn at 112% and out on core styles; **1,240 units** rerouted from a backup DC | Confirm backup DC can spare it; trace to inbound POs; hold plans on the over-drawn DC |
 | **Size Curve** | Warning | One plan over-shipped XL and under-shipped Small | Store-to-store transfer to cover Small, or fix the constraint |
-| **Store Capacity** | Warning | 9 stores projected near/over physical capacity (On Hand + On Order + In Transit + New Allocation) | Trim/stagger new allocation, or transfer stock before dispatch |
+| **Store Capacity & Total Store Velocity** | Critical | Macro store health: 12 stores flagged — 5 over physical capacity (1,842 overflow units) and 4 bloated (>20 WOS); 3 breach both | Trim/stagger allocation, freeze store-wide auto-replen, or adjust the store velocity multiplier before dispatch |
 
 ### Two signature views worth calling out
 - **Multi-DC Sourcing Flow** — visually shows the primary DC drawn past its safe bound feeding a secondary-DC fallback, so supply planners immediately see the hidden cross-DC dependency and cost.
-- **Store Capacity utilization** — a per-store bar (On Hand / On Order / In Transit / New Allocation) against a 100% ceiling, with over-capacity stores flagged and the exact overflow/headroom quantified.
+- **Macro Store Health (Store Capacity & Total Store Velocity)** — each store is evaluated as a total entity on two side-by-side indicators: **Physical Space** (radial gauge + stacked On Hand / On Order / In Transit / New Allocation bar against a 100% ceiling with red overflow hatching) and **Total Store Velocity** (aggregate Store WOS vs. the 2–16 healthy band, flagging Bloated >20 WOS / Slow >16 WOS / Rapid <2 WOS). Dual-breach stores escalate to Critical and expose macro action tags (Trim Allocation, Freeze Auto-Replen, Adjust Store Multiplier).
 
 ---
 
@@ -111,7 +113,7 @@ Each bucket is a diagnosed root cause. It shows a macro-impact line, a drill-dow
 - **Biggest markdown risk:** Min Constraints (~$1,606 of stock stuck in slow stores).
 - **Most urgent stockouts:** 5 plans with stores under one week of supply.
 - **Hidden supply exposure:** 1,240 units (21% of draw) rerouted from a backup DC.
-- **Overfill risk:** 9 stores nearing capacity, 2 already over 100%.
+- **Overfill risk:** 5 stores over physical capacity (1,842 overflow units); 4 bloated (>20 WOS) locking ~$530K working capital.
 
 ---
 
@@ -121,15 +123,15 @@ To run this against real cycles, the engine output must provide the following. (
 
 | Data domain | Fields needed | Feeds |
 |-------------|---------------|-------|
-| **Plans** | plan id, products, stores, allocation rate, unmet volume, revenue at risk, status | Triage, KPIs, Handbook |
-| **Plan → Style-Color → Store → Size** | hierarchy with per-store units, sizes, and a system note explaining the constraint | Handbook tree drill-down |
+| **Plans** | plan id, products, stores, allocation rate, unmet volume, revenue at risk, status | Triage, KPIs, Insights |
+| **Plan → Style-Color → Store → Size** | hierarchy with per-store units, sizes, and a system note explaining the constraint | Insights evidence tree drill-down |
 | **FWOS** | forward weeks of supply per plan + count of at-risk stores | Urgency flags |
 | **DC inventory** | per-DC available-to-allocate, drawn %, safe bound, primary/secondary assignment, fallback units | DC bucket + Multi-DC flow + KPI |
 | **Purchase orders** | PO number, ETA, channel, linked style-color | DC bucket rows |
-| **Store capacity** | per-store capacity ceiling, on hand, on order, in transit, new allocation | Store Capacity bucket + KPI |
+| **Store macro health** | per-store tier/cluster, capacity ceiling, on hand, on order, in transit, new allocation, weekly replen sales, aggregate Store WOS | Store Capacity & Total Store Velocity bucket + KPI |
 | **Constraint metadata** | min floors, max caps, pack sizes, size-curve baselines | Diagnostic checks + notes |
 
-**Rule of thumb:** each KPI, playbook card, and bucket is fully data-driven — supplying the fields above lights up the whole console with no code changes.
+**Rule of thumb:** each KPI, action narrative, and bucket is fully data-driven — supplying the fields above lights up the whole console with no code changes.
 
 ---
 
@@ -139,7 +141,7 @@ The console is built to **scale to more diagnostic dimensions** without re-engin
 
 - **New insight bucket** (e.g. "Priority Inversion", "Single-Store Concentration") — add one data object with a color, an icon, and a layout type. No UI wiring needed; ~5+ more buckets already have colors/icons reserved. (Recipe in `INSIGHTS.md`.)
 - **New KPI** — add one card object (value, trend, accent, tooltip).
-- **New playbook action** — add one card sharing an export id with its bucket.
+- **New action narrative** — add one `playbook` entry sharing an `exportBucketId` with its bucket; it merges into the bucket's card automatically.
 
 This means the tool can grow with your allocation policy — as you add rules, you add the matching diagnostic with minimal effort.
 

@@ -5,7 +5,7 @@ A plain-language guide to what the console shows and the numbers that matter. No
 > **📚 Documentation map** — start here based on who you are:
 > - **`AGENT.md`** — full system & technical overview. Start here for the big picture.
 > - **`BUSINESS_GUIDE.md`** — business & implementation view: what each section does, all KPIs, data inputs, rollout.
-> - **`INSIGHTS.md`** — technical field-level mapping: insight ↔ playbook ↔ KPI, data sources, "add a bucket" guide.
+> - **`INSIGHTS.md`** — technical field-level mapping: insight ↔ action ↔ KPI, data sources, "add a bucket" guide.
 > - **`OVERVIEW.md`** *(this file)* — one-page plain-language business summary.
 
 ---
@@ -36,12 +36,11 @@ It reviews how this cycle's inventory was allocated across stores, flags where d
 
 ---
 
-## What's inside — the 4 sections
+## What's inside — the 3 sections
 
 1. **Triage Ribbon** — the cycle scorecard: how many plans are safe, at issue, or urgent, plus 6 automated health checks.
 2. **Overview** — the 5 KPIs above.
-3. **Smart Actions Playbook** — the recommended fixes, ranked, each written as *What's happening → Why it matters → What to do next*.
-4. **Insight Handbook** — the detail view: drill from a plan down to the exact store and size behind each issue, and export the list.
+3. **Insights & Smart Actions** — one card per issue: read the recommended fix (*What's happening → Why it matters → What to do next*) up top, then open **View affected plans & stores** to drill from a plan down to the exact store and size, and export the list.
 
 ---
 
@@ -54,7 +53,7 @@ It reviews how this cycle's inventory was allocated across stores, flags where d
 | C | **Pack Config** | Warning | Case-pack rounding blocked 6,977 units — the main driver of the 47.6% unmet rate. | Review pack-rounding settings; consider rounding to the nearest pack. |
 | D | **DC Inventory & Multi-DC Sourcing** | Critical | Main DC (DC-01) is over-drawn at 112% and out on core styles, so 1,240 units are now pulled from a backup DC. | Confirm the backup DC can spare the draw; trace to incoming POs (Jul 28 – Aug 02); hold plans on the over-drawn DC. |
 | E | **Size Curve** | Warning | One plan over-shipped XL and under-shipped Small. | Check for a store-to-store transfer to cover Small, or review the constraints. |
-| F | **Store Capacity** | Warning | 9 stores are projected to fill near/over their physical capacity (On Hand + On Order + In Transit + New Allocation). | Trim or stagger the new allocation, or transfer stock between stores before dispatch. |
+| F | **Store Capacity & Total Store Velocity** | Critical | Macro store health: 12 stores flagged — 5 over physical capacity and 4 bloated (>20 WOS); 3 breach both. | Trim/stagger allocation, freeze store-wide auto-replen, or adjust the store velocity multiplier before dispatch. |
 
 ---
 
@@ -64,7 +63,7 @@ It reviews how this cycle's inventory was allocated across stores, flags where d
 - **Biggest markdown risk:** Min Constraints (~$1,606 of stock stuck in slow stores).
 - **Most urgent stockouts:** plans PLN-104, PLN-124, PLN-118, PLN-127, PLN-092 — all with stores under one week of supply.
 - **Cross-DC exposure:** 1,240 units (21% of the draw) rerouted from the backup DC because the main DC is over-drawn.
-- **Overfill risk:** 9 stores nearing capacity, 2 already projecting over 100% fill.
+- **Overfill risk:** 5 stores over physical capacity (1,842 overflow units), plus 4 bloated (>20 WOS) locking ~$530K of working capital in slow-turning stock.
 
 ---
 

@@ -6,19 +6,45 @@
   color-scheme: light;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html,
 body,
 #root {
   height: 100%;
 }
 
+/* Consistent, premium focus ring for keyboard users across all controls. */
+:where(button, a, [role='button'], [tabindex]):focus-visible {
+  outline: none;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px rgba(99, 102, 241, 0.55);
+}
+
+/* Respect users who prefer reduced motion — quiet the ambient animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   margin: 0;
-  background-color: #eef1f6;
+  background-color: #eceff5;
   background-image:
-    radial-gradient(1100px 600px at 12% -8%, rgba(99, 102, 241, 0.10), transparent 60%),
-    radial-gradient(1000px 520px at 100% 0%, rgba(14, 165, 233, 0.08), transparent 55%),
-    radial-gradient(900px 700px at 50% 120%, rgba(15, 23, 42, 0.06), transparent 60%);
+    radial-gradient(1200px 640px at 8% -10%, rgba(99, 102, 241, 0.16), transparent 58%),
+    radial-gradient(1080px 560px at 102% -4%, rgba(14, 165, 233, 0.13), transparent 54%),
+    radial-gradient(900px 620px at 88% 108%, rgba(168, 85, 247, 0.10), transparent 56%),
+    radial-gradient(1000px 760px at 42% 128%, rgba(15, 23, 42, 0.07), transparent 60%);
   background-attachment: fixed;
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: 'cv11', 'ss01';
@@ -27,11 +53,52 @@ body {
   color: #0f172a;
 }
 
+/* Faint atmospheric grid + film grain that sits behind all content, adding
+   depth without competing with the cards. Fixed so it doesn't scroll. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(1200px 900px at 50% 0%, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(1200px 900px at 50% 0%, #000 30%, transparent 78%);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 .premium-grid {
   background-image:
     linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
+}
+
+/* Subtle animated conic sheen for hero surfaces (dark banners). */
+@keyframes auroraShift {
+  0% { transform: translate3d(-6%, -4%, 0) rotate(0deg); }
+  50% { transform: translate3d(6%, 4%, 0) rotate(180deg); }
+  100% { transform: translate3d(-6%, -4%, 0) rotate(360deg); }
+}
+.aurora {
+  animation: auroraShift 18s ease-in-out infinite;
 }
 
 *::-webkit-scrollbar {

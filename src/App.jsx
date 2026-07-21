@@ -3,7 +3,6 @@ import { Globe, Boxes } from 'lucide-react'
 import { ToastProvider } from './components/Toast'
 import TriageRibbon from './components/TriageRibbon'
 import KpiStrip from './components/KpiStrip'
-import Playbook from './components/Playbook'
 import InsightsStudio from './components/InsightsStudio'
 import { insights } from './data/mockData'
 
@@ -21,6 +20,9 @@ function Workspace() {
   const toggleInsight = (id) =>
     setOpenInsights((prev) => ({ ...prev, [id]: !prev[id] }))
 
+  const toggleAllInsights = (open) =>
+    setOpenInsights(Object.fromEntries(insights.map((i) => [i.id, open])))
+
   const handleFilter = (key) => {
     setFilter((prev) => (prev === key ? 'all' : key))
     setTimeout(() => {
@@ -31,12 +33,14 @@ function Workspace() {
   return (
     <div className="min-h-screen">
       {/* App bar */}
-      <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.25)] backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/60 bg-white/65 shadow-[0_1px_0_rgba(15,23,42,0.04),0_10px_30px_-18px_rgba(15,23,42,0.3)] backdrop-blur-xl">
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white shadow-premium ring-1 ring-white/10">
-              <Boxes className="h-5 w-5" />
-              <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
+            <div className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white shadow-premium ring-1 ring-white/10">
+              <span className="pointer-events-none absolute -inset-2 bg-[conic-gradient(from_180deg,rgba(99,102,241,0.5),rgba(14,165,233,0.4),rgba(168,85,247,0.5),rgba(99,102,241,0.5))] opacity-60 blur-md aurora" />
+              <Boxes className="relative h-5 w-5" />
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 to-transparent" />
             </div>
             <div>
               <h1 className="text-base font-extrabold tracking-tight text-slate-900">
@@ -45,10 +49,10 @@ function Workspace() {
               <p className="text-[11px] font-medium tracking-wide text-slate-400">Visual Diagnostic &amp; Triage Console</p>
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-premium ring-1 ring-white/40 backdrop-blur">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-premium ring-1 ring-white/40 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-premium-lg">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_1px_rgba(16,185,129,0.6)]" />
             </span>
             <Globe className="h-4 w-4 text-slate-500" />
             Global Aggregate View
@@ -57,18 +61,23 @@ function Workspace() {
       </header>
 
       <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-7 sm:px-6">
-        <TriageRibbon activeFilter={filter} onFilter={handleFilter} />
+        <div className="animate-floatUp" style={{ animationDelay: '40ms' }}>
+          <TriageRibbon activeFilter={filter} onFilter={handleFilter} />
+        </div>
 
-        <KpiStrip />
+        <div className="animate-floatUp" style={{ animationDelay: '120ms' }}>
+          <KpiStrip />
+        </div>
 
-        <Playbook />
-
-        <InsightsStudio
-          ref={insightsSectionRef}
-          openMap={openInsights}
-          onToggle={toggleInsight}
-          refs={insightRefs}
-        />
+        <div className="animate-floatUp" style={{ animationDelay: '200ms' }}>
+          <InsightsStudio
+            ref={insightsSectionRef}
+            openMap={openInsights}
+            onToggle={toggleInsight}
+            onToggleAll={toggleAllInsights}
+            refs={insightRefs}
+          />
+        </div>
 
         <footer className="pb-6 pt-2 text-center text-xs text-slate-400">
           AutoAllocation Insights · Baseline cycle snapshot · Read-only diagnostics
