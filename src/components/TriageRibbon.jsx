@@ -8,7 +8,7 @@ import Tooltip from './Tooltip'
 // keyed by insight bucket id. Built from the live `insights` dataset so the
 // counts and percentages stay in sync with the drill-down below.
 const bucketMeta = {
-  packConfig: { label: 'Pack Config Rounding', bar: 'bg-indigo-500' },
+  packConfig: { label: 'Pack Config Rounding', bar: 'bg-blue-500' },
   dcInventory: { label: 'DC Sourcing & Depletion', bar: 'bg-rose-500' },
   minConstraints: { label: 'Min Constraint Floors', bar: 'bg-sky-500' },
   storeCapacity: { label: 'Store Capacity Limits', bar: 'bg-teal-500' },
@@ -82,10 +82,10 @@ const cards = [
     scopeLabel: triage.allCycles.scopeLabel,
     theme: {
       base: 'border-slate-200 bg-white',
-      active: 'border-slate-400 bg-slate-50 ring-1 ring-slate-200',
+      active: 'border-blue-300 bg-blue-50/40 ring-1 ring-blue-200',
       count: 'text-slate-900',
-      icon: 'text-slate-600 bg-slate-100',
-      dot: 'bg-slate-400',
+      icon: 'text-blue-600 bg-blue-100',
+      dot: 'bg-gradient-to-b from-blue-400 to-blue-600',
     },
   },
   {

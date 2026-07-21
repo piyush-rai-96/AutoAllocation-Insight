@@ -38,11 +38,11 @@ const accentMap = {
     pill: 'bg-rose-50 text-rose-600',
   },
   violet: {
-    icon: 'bg-gradient-to-br from-violet-50 to-violet-100 text-violet-600',
+    icon: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600',
     value: 'text-slate-900',
-    spark: '#7c3aed',
-    dot: 'bg-gradient-to-b from-violet-400 to-violet-500',
-    pill: 'bg-violet-50 text-violet-600',
+    spark: '#2563eb',
+    dot: 'bg-gradient-to-b from-blue-400 to-blue-500',
+    pill: 'bg-blue-50 text-blue-600',
   },
   teal: {
     icon: 'bg-gradient-to-br from-teal-50 to-teal-100 text-teal-600',
@@ -52,11 +52,11 @@ const accentMap = {
     pill: 'bg-teal-50 text-teal-600',
   },
   indigo: {
-    icon: 'bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600',
+    icon: 'bg-gradient-to-br from-sky-50 to-sky-100 text-sky-600',
     value: 'text-slate-900',
-    spark: '#4f46e5',
-    dot: 'bg-gradient-to-b from-indigo-400 to-indigo-500',
-    pill: 'bg-indigo-50 text-indigo-600',
+    spark: '#0284c7',
+    dot: 'bg-gradient-to-b from-sky-400 to-sky-500',
+    pill: 'bg-sky-50 text-sky-600',
   },
 }
 

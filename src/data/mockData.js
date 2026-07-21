@@ -504,9 +504,12 @@ export const insights = [
         primaryDcStatus: 'Exhausted',
         sourcedFrom: 'DC-02 · Central',
         fallbackUnits: 820,
-        po: 'PO-2026-X992',
-        eta: 'July 28',
-        channel: 'Vendor Direct',
+        // Some style-colors require MULTIPLE dispatch POs to fully expedite
+        // (e.g. a split shipment across vendors / delivery lanes).
+        pos: [
+          { po: 'PO-2026-X992', eta: 'July 28', channel: 'Vendor Direct' },
+          { po: 'PO-2026-X993', eta: 'July 31', channel: 'Central Hub Delivery' },
+        ],
       },
       {
         icon: '👗',
@@ -762,11 +765,13 @@ export function buildInsightExport(bucketId) {
   const item = insights.find((b) => b.id === bucketId)
   if (!item) return []
   if (item.type === 'poTable') {
-    return ['Style-Color,Group,Network Status,Primary DC,Primary DC Status,Sourced From,Fallback Units,Target PO'].concat(
-      item.rows.map(
-        (r) =>
-          `${r.style},${r.group},${r.status},${r.primaryDc || ''},${r.primaryDcStatus || ''},${r.sourcedFrom || ''},${r.fallbackUnits || ''},${r.po} (ETA ${r.eta} / ${r.channel})`,
-      ),
+    return ['Style-Color,Group,Network Status,Primary DC,Primary DC Status,Sourced From,Fallback Units,Target POs'].concat(
+      item.rows.map((r) => {
+        // Support either a single PO (po/eta/channel) or a list (pos[]).
+        const pos = r.pos || [{ po: r.po, eta: r.eta, channel: r.channel }]
+        const poCol = pos.map((p) => `${p.po} (ETA ${p.eta} / ${p.channel})`).join(' | ')
+        return `${r.style},${r.group},${r.status},${r.primaryDc || ''},${r.primaryDcStatus || ''},${r.sourcedFrom || ''},${r.fallbackUnits || ''},"${poCol}"`
+      }),
     )
   }
   if (item.type === 'capacityTable') {

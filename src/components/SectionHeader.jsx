@@ -1,8 +1,8 @@
 export default function SectionHeader({ icon: Icon, title, subtitle }) {
   return (
     <div className="mb-3.5 flex items-center gap-2.5">
-      <div className="group relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-premium ring-1 ring-white/10">
-        <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-indigo-500/30 via-sky-500/20 to-transparent opacity-60 blur-md" />
+      <div className="group relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-sky-700 text-white shadow-premium ring-1 ring-white/20">
+        <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-blue-500/40 via-sky-500/25 to-transparent opacity-70 blur-md" />
         <Icon className="relative h-4 w-4" />
         <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-white/20 to-transparent" />
       </div>

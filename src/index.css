@@ -22,7 +22,7 @@ body,
   border-radius: 0.5rem;
   box-shadow:
     0 0 0 2px #fff,
-    0 0 0 4px rgba(99, 102, 241, 0.55);
+    0 0 0 4px rgba(37, 99, 235, 0.55);
 }
 
 /* Respect users who prefer reduced motion — quiet the ambient animations. */
@@ -39,12 +39,12 @@ body,
 
 body {
   margin: 0;
-  background-color: #eceff5;
+  background-color: #eef4ff;
   background-image:
-    radial-gradient(1200px 640px at 8% -10%, rgba(99, 102, 241, 0.16), transparent 58%),
-    radial-gradient(1080px 560px at 102% -4%, rgba(14, 165, 233, 0.13), transparent 54%),
-    radial-gradient(900px 620px at 88% 108%, rgba(168, 85, 247, 0.10), transparent 56%),
-    radial-gradient(1000px 760px at 42% 128%, rgba(15, 23, 42, 0.07), transparent 60%);
+    radial-gradient(1200px 640px at 8% -10%, rgba(37, 99, 235, 0.18), transparent 58%),
+    radial-gradient(1080px 560px at 102% -4%, rgba(14, 165, 233, 0.16), transparent 54%),
+    radial-gradient(900px 620px at 88% 108%, rgba(59, 130, 246, 0.12), transparent 56%),
+    radial-gradient(1000px 760px at 42% 128%, rgba(96, 165, 250, 0.10), transparent 60%);
   background-attachment: fixed;
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: 'cv11', 'ss01';
@@ -101,17 +101,23 @@ body::after {
   animation: auroraShift 18s ease-in-out infinite;
 }
 
+/* Blue sheen sweep used on premium surfaces. */
+@keyframes sheenSweep {
+  0% { transform: translateX(-120%); }
+  60%, 100% { transform: translateX(220%); }
+}
+
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #bfdbfe;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #60a5fa;
   background-clip: content-box;
 }

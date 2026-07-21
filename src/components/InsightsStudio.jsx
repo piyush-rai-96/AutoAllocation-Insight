@@ -24,8 +24,6 @@ import {
   Maximize2,
   Minimize2,
   Layers,
-  PauseCircle,
-  SlidersHorizontal,
 } from 'lucide-react'
 import { insightCards, getPlanMeta, buildInsightExport } from '../data/mockData'
 import Tooltip from './Tooltip'
@@ -36,19 +34,32 @@ import SectionHeader from './SectionHeader'
 // from the per-bucket iconName/tone registries below.
 const severityMap = {
   critical: {
+    rank: 0,
     dot: 'bg-rose-500',
     glow: 'shadow-[0_0_8px_1px_rgba(244,63,94,0.5)]',
     label: 'Critical',
     labelChip: 'bg-rose-50 text-rose-600 border-rose-200',
     ring: 'border-rose-200',
+    rail: 'bg-gradient-to-b from-rose-400 to-rose-500',
+    impact: 'text-rose-600',
   },
   warning: {
+    rank: 1,
     dot: 'bg-amber-500',
     glow: 'shadow-[0_0_8px_1px_rgba(245,158,11,0.5)]',
     label: 'Warning',
     labelChip: 'bg-amber-50 text-amber-600 border-amber-200',
     ring: 'border-amber-200',
+    rail: 'bg-gradient-to-b from-amber-400 to-amber-500',
+    impact: 'text-amber-700',
   },
+}
+
+// Normalize impact/currency strings for display: drop trailing ".00" cents so
+// figures read as clean money (e.g. "~$221.00 revenue at risk" → "~$221 …").
+function formatImpact(value) {
+  if (typeof value !== 'string') return value
+  return value.replace(/(\$\d[\d,]*)\.00\b/g, '$1')
 }
 
 // What → Why → Next Step narrative (folded in from the old Playbook card).
@@ -99,9 +110,9 @@ function ActionBlock({ item }) {
 }
 
 const planStatusMap = {
-  Urgent: { dot: 'bg-rose-500', bar: 'bg-rose-500' },
-  Constrained: { dot: 'bg-amber-500', bar: 'bg-amber-500' },
-  Safe: { dot: 'bg-emerald-500', bar: 'bg-emerald-500' },
+  Urgent: { dot: 'bg-rose-400', bar: 'bg-rose-300' },
+  Constrained: { dot: 'bg-amber-400', bar: 'bg-amber-300' },
+  Safe: { dot: 'bg-emerald-400', bar: 'bg-emerald-300' },
 }
 
 // Eye-catching flag for plans whose forward weeks of supply drop below 1 week —
@@ -116,16 +127,16 @@ function FwosFlag({ fwos, stores, compact = false }) {
       }`}
       width="w-64"
     >
-      <span className="group/fwos relative inline-flex cursor-help items-center gap-1 overflow-hidden rounded-full border border-rose-300/70 bg-gradient-to-r from-rose-500 to-red-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-[0_0_12px_1px_rgba(244,63,94,0.45)]">
-        <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover/fwos:animate-sheen" />
+      <span className="group/fwos relative inline-flex cursor-help items-center gap-1.5 rounded-full border border-rose-100 bg-rose-50/80 px-2.5 py-1 text-[10px] font-semibold text-rose-600 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm">
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/80 opacity-75" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-300 opacity-70" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
         </span>
-        <Timer className="relative h-3 w-3" />
-        <span className="relative tabular-nums">FWOS {label}</span>
+        <Timer className="relative h-3 w-3 opacity-60" />
+        <span className="relative font-bold uppercase tracking-wide opacity-55">FWOS</span>
+        <span className="relative tabular-nums">{label}</span>
         {!compact && stores ? (
-          <span className="relative rounded-full bg-white/20 px-1 tabular-nums">{stores}</span>
+          <span className="relative rounded-full bg-rose-100 px-1 font-bold tabular-nums text-rose-600">{stores}</span>
         ) : null}
       </span>
     </Tooltip>
@@ -135,19 +146,19 @@ function FwosFlag({ fwos, stores, compact = false }) {
 // A single polished "flag" chip used across every plan metric for a consistent, premium look.
 function MetricChip({ icon: Icon, label, value, title, tone = 'slate' }) {
   const toneMap = {
-    slate: 'border-slate-200 bg-slate-50 text-slate-700',
-    rose: 'border-rose-200 bg-rose-50 text-rose-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    violet: 'border-violet-200 bg-violet-50 text-violet-700',
+    slate: 'border-slate-200/80 bg-slate-50 text-slate-600',
+    rose: 'border-rose-100 bg-rose-50/80 text-rose-600',
+    amber: 'border-amber-100 bg-amber-50/80 text-amber-700',
+    emerald: 'border-emerald-100 bg-emerald-50/80 text-emerald-600',
+    violet: 'border-sky-100 bg-sky-50/80 text-sky-700',
   }
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow ${toneMap[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm ${toneMap[tone]}`}
     >
-      {Icon && <Icon className="h-3 w-3 opacity-70" />}
-      {label && <span className="font-bold uppercase tracking-wide opacity-60">{label}</span>}
+      {Icon && <Icon className="h-3 w-3 opacity-60" />}
+      {label && <span className="font-bold uppercase tracking-wide opacity-55">{label}</span>}
       <span className="tabular-nums">{value}</span>
     </span>
   )
@@ -227,10 +238,11 @@ function ExportAllButton({ onExport, title, size = 'md', label = 'Export all', c
     <button
       onClick={onExport}
       title={title}
-      className={`group/exp relative inline-flex flex-shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 ${pad} font-bold text-white shadow-md ring-1 ring-white/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-indigo-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${className}`}
+      aria-label={typeof label === 'string' ? label : 'Export all'}
+      className={`group/exp relative inline-flex flex-shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-blue-600 to-sky-600 ${pad} font-bold text-white shadow-md shadow-blue-500/25 ring-1 ring-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${className}`}
     >
-      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover/exp:translate-x-full" />
-      <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-sky-500/0 opacity-0 transition-opacity duration-300 group-hover/exp:opacity-100" />
+      <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover/exp:translate-x-full" />
+      <span className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-white/25 to-transparent" />
       <Download className={`relative ${icon}`} />
       <span className="relative">{label}</span>
     </button>
@@ -238,42 +250,31 @@ function ExportAllButton({ onExport, title, size = 'md', label = 'Export all', c
 }
 
 // Impact-cap indicator, shown at every level (plans / style-colors / stores)
-// when a list is truncated. It is a premium "get the rest" CTA: it makes the
-// top-N ranking unmistakable AND offers a one-click export of the COMPLETE,
-// impact-ranked set. Clicking it fires the same single card export.
-function TruncationFooter({ shown, total, noun, indent = '', onExport }) {
+// when a list is truncated. It is purely informational: it makes the top-N
+// ranking unmistakable and points to the single "Export all" (on the drill-down
+// header) for the complete, impact-ranked set — no duplicate export button.
+function TruncationFooter({ shown, total, noun, indent = '' }) {
   if (total <= shown) return null
   const remaining = total - shown
   return (
     <div className={`mt-2 ${indent}`}>
-      <button
-        onClick={onExport}
-        title={`Export the complete, impact-ranked list of all ${total} ${noun} — including the ${remaining} beyond the top ${shown} shown here`}
-        className="group/more relative flex w-full items-center gap-2.5 overflow-hidden rounded-xl border border-indigo-200/70 bg-gradient-to-r from-indigo-50/90 via-sky-50/70 to-white px-3 py-2 text-left shadow-sm ring-1 ring-white/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-premium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-      >
-        {/* sheen sweep on hover */}
-        <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-700 group-hover/more:translate-x-full" />
-        <span className="relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 text-white shadow-sm ring-1 ring-white/40">
+      <div className="relative flex w-full items-center gap-2.5 overflow-hidden rounded-xl border border-blue-200/70 bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-white px-3 py-2 shadow-sm ring-1 ring-white/60">
+        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-sky-500 text-white shadow-sm ring-1 ring-white/40">
           <Layers className="h-3.5 w-3.5" />
         </span>
-        <span className="relative min-w-0 flex-1">
+        <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800">
-            <ArrowUpNarrowWide className="h-3 w-3 text-indigo-500" />
-            Top {shown} by impact
-            <span className="rounded-full bg-indigo-100 px-1.5 py-px text-[10px] font-extrabold text-indigo-700">
+            <ArrowUpNarrowWide className="h-3 w-3 text-blue-500" />
+            Showing top {shown} of {total} {noun} by impact
+            <span className="rounded-full bg-blue-100 px-1.5 py-px text-[10px] font-extrabold text-blue-700">
               +{remaining} more
             </span>
           </span>
           <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
-            Export the complete list of all {total} {noun} — impact-ranked
+            Highest-priority {noun} first — the full ranked set is one download away.
           </span>
         </span>
-        <span className="relative flex flex-shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-3 py-1.5 text-[11px] font-bold text-white shadow-md ring-1 ring-white/10 transition-all group-hover/more:-translate-y-0.5 group-hover/more:shadow-lg group-hover/more:ring-indigo-400/50">
-          <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover/more:translate-x-full" />
-          <Download className="relative h-3.5 w-3.5" />
-          <span className="relative">Export all</span>
-        </span>
-      </button>
+      </div>
     </div>
   )
 }
@@ -292,11 +293,11 @@ const ACCENT_DOT = {
   rose: 'bg-rose-500',
   amber: 'bg-amber-500',
   teal: 'bg-teal-500',
-  indigo: 'bg-indigo-500',
-  violet: 'bg-violet-500',
+  indigo: 'bg-blue-500',
+  violet: 'bg-cyan-500',
   emerald: 'bg-emerald-500',
   cyan: 'bg-cyan-500',
-  fuchsia: 'bg-fuchsia-500',
+  fuchsia: 'bg-sky-500',
   orange: 'bg-orange-500',
   blue: 'bg-blue-500',
 }
@@ -332,7 +333,8 @@ function CopyButton({ value, message, label = 'Copy combination' }) {
     <button
       onClick={handleCopy}
       title={label}
-      className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-300 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 group-hover/node:opacity-100"
+      aria-label={label}
+      className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:opacity-100 group-hover/node:opacity-100"
     >
       <Copy className="h-3.5 w-3.5" />
     </button>
@@ -443,7 +445,6 @@ function StyleNode({ style, index, planId, bucketId, onExport }) {
             total={style.stores.length}
             noun="stores"
             indent="pl-7"
-            onExport={onExport}
           />
         </div>
       )}
@@ -493,7 +494,6 @@ function PlanNode({ plan, defaultOpen, index, bucketId, onExport }) {
             total={plan.styles.length}
             noun="style-colors"
             indent="pl-6"
-            onExport={onExport}
           />
         </div>
       )}
@@ -519,14 +519,14 @@ function DcPanel({ dc, tone, critical, footer }) {
           foot: 'text-rose-600',
         }
       : {
-          border: 'border-violet-200',
-          bg: 'from-violet-50/70 to-white',
-          icon: 'text-violet-500',
-          value: 'text-violet-600',
-          track: 'bg-violet-100',
-          fill: 'from-violet-400 to-violet-600',
-          pill: 'bg-violet-100 text-violet-700',
-          foot: 'text-violet-600',
+          border: 'border-cyan-200',
+          bg: 'from-cyan-50/70 to-white',
+          icon: 'text-cyan-500',
+          value: 'text-cyan-600',
+          track: 'bg-cyan-100',
+          fill: 'from-cyan-400 to-cyan-600',
+          pill: 'bg-cyan-100 text-cyan-700',
+          foot: 'text-cyan-600',
         }
   return (
     <div className={`relative flex-1 overflow-hidden rounded-xl border ${T.border} bg-gradient-to-b ${T.bg} p-3 shadow-sm ring-1 ring-white/50`}>
@@ -575,7 +575,7 @@ function DcSourcingFlow({ dcFlow }) {
         { label: 'DCs in Network', value: overview.totalDcs, tone: 'text-slate-800' },
         { label: 'DCs Exhausted', value: overview.exhaustedDcs, tone: 'text-rose-600' },
         { label: 'Network Consumed', value: `${overview.networkConsumedPct}%`, tone: 'text-slate-800' },
-        { label: 'Fallback Units', value: `+${overview.fallbackUnits.toLocaleString()}`, tone: 'text-violet-600' },
+        { label: 'Fallback Units', value: `+${overview.fallbackUnits.toLocaleString()}`, tone: 'text-cyan-600' },
       ]
     : []
   return (
@@ -610,7 +610,7 @@ function DcSourcingFlow({ dcFlow }) {
         <div className="flex flex-col items-center justify-center px-1">
           <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Fallback</span>
           <ArrowRight className="h-5 w-5 animate-pulse text-slate-400" />
-          <span className="text-[10px] font-bold tabular-nums text-violet-600">
+          <span className="text-[10px] font-bold tabular-nums text-cyan-600">
             +{secondary.drawUnits.toLocaleString()}
           </span>
         </div>
@@ -635,8 +635,8 @@ function PoTable({ rows, dcFlow }) {
   return (
     <div>
       <DcSourcingFlow dcFlow={dcFlow} />
-      <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-gradient-to-r from-slate-100 to-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-2.5 font-semibold">Affected Style-Color</th>
@@ -673,7 +673,7 @@ function PoTable({ rows, dcFlow }) {
                       </span>
                     )}
                     {row.sourcedFrom && (
-                      <span className="inline-flex w-fit items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">
                         <ArrowRight className="h-3 w-3 opacity-70" />
                         Sourced from {row.sourcedFrom} · +{row.fallbackUnits}
                       </span>
@@ -681,19 +681,36 @@ function PoTable({ rows, dcFlow }) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-slate-700">{row.po}</span>
-                    <button
-                      onClick={() => copyPo(row.po)}
-                      title="Copy ID"
-                      className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="text-xs text-slate-400">
-                      (ETA: {row.eta} / {row.channel})
-                    </span>
-                  </div>
+                  {(() => {
+                    // A style-color may need one or several dispatch POs to fully
+                    // expedite. Normalize both shapes to a list.
+                    const pos = row.pos || [{ po: row.po, eta: row.eta, channel: row.channel }]
+                    return (
+                      <div className="flex flex-col gap-1.5">
+                        {pos.length > 1 && (
+                          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                            {pos.length} POs to expedite
+                          </span>
+                        )}
+                        {pos.map((p, pi) => (
+                          <div key={pi} className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-slate-700">{p.po}</span>
+                            <button
+                              onClick={() => copyPo(p.po)}
+                              title="Copy PO number"
+                              aria-label={`Copy PO number ${p.po}`}
+                              className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="text-xs text-slate-400">
+                              (ETA: {p.eta} / {p.channel})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </td>
               </tr>
             ))}
@@ -707,10 +724,10 @@ function PoTable({ rows, dcFlow }) {
 // Store capacity utilization: stacked bar of On Hand / On Order / In Transit /
 // New Allocation against the store's capacity ceiling. Highlights soft breaches.
 const capacitySegments = [
-  { key: 'onHand', label: 'On Hand', color: 'bg-gradient-to-b from-slate-300 to-slate-400', dot: 'bg-slate-400' },
-  { key: 'onOrder', label: 'On Order', color: 'bg-gradient-to-b from-sky-300 to-sky-500', dot: 'bg-sky-400' },
-  { key: 'inTransit', label: 'In Transit', color: 'bg-gradient-to-b from-indigo-300 to-indigo-500', dot: 'bg-indigo-400' },
-  { key: 'newAllocation', label: 'New Allocation', color: 'bg-gradient-to-b from-amber-300 to-amber-500', dot: 'bg-amber-400' },
+  { key: 'onHand', label: 'On Hand', color: 'bg-gradient-to-b from-slate-200 to-slate-300', dot: 'bg-slate-300' },
+  { key: 'onOrder', label: 'On Order', color: 'bg-gradient-to-b from-sky-300 to-sky-400', dot: 'bg-sky-400' },
+  { key: 'inTransit', label: 'In Transit', color: 'bg-gradient-to-b from-blue-400 to-blue-500', dot: 'bg-blue-500' },
+  { key: 'newAllocation', label: 'New Allocation', color: 'bg-gradient-to-b from-blue-600 to-blue-700', dot: 'bg-blue-600' },
 ]
 
 // Store Velocity is read through a Forward-Weeks-of-Supply (FWOS) cover lens:
@@ -773,8 +790,10 @@ function CapacityGauge({ util, over, near }) {
   )
 }
 
-// Indicator 1 — Physical Space. Radial gauge + stacked inventory bar with a
-// 100% ceiling marker and red diagonal hatching for the overflow spill zone.
+// Indicator 1 — Physical Space. Radial gauge + a refined monochrome-blue
+// stacked inventory bar with a crisp capacity ceiling marker and a soft breach
+// wash beyond it. The overage is folded into the Fill/Cap readout (the gauge %
+// already communicates the breach), so there is no redundant "over" pill.
 function PhysicalSpaceIndicator({ row, index, over, near, util }) {
   const projected = row.onHand + row.onOrder + row.inTransit + row.newAllocation
   const scale = Math.max(util, 100) // baseline so the 100% ceiling maps consistently
@@ -782,30 +801,19 @@ function PhysicalSpaceIndicator({ row, index, over, near, util }) {
   const overflowUnits = Math.max(projected - row.capacity, 0)
   const headroomUnits = Math.max(row.capacity - projected, 0)
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white/70 p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Physical Space</span>
-        {over ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm">
-            +{overflowUnits.toLocaleString()} over
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-            {headroomUnits.toLocaleString()} headroom
-          </span>
-        )}
+    <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/60 p-4 shadow-inner ring-1 ring-white/60">
+      <div className="mb-4 flex items-center justify-between">
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          <span className={`h-1.5 w-1.5 rounded-full ${over ? 'bg-rose-500' : near ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+          Physical Space
+        </span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <CapacityGauge util={util} over={over} near={near} />
         <div className="min-w-0 flex-1">
-          {/* Stacked capacity bar with ceiling marker + overflow spill zone */}
-          <div className="relative mt-3 h-5 w-full rounded-full bg-slate-100 shadow-inner">
-            {over && (
-              <span
-                className="absolute top-0 h-full rounded-r-full bg-[repeating-linear-gradient(45deg,rgba(244,63,94,0.18),rgba(244,63,94,0.18)_5px,rgba(244,63,94,0.06)_5px,rgba(244,63,94,0.06)_10px)]"
-                style={{ left: `${ceilingLeft}%`, right: 0 }}
-              />
-            )}
+          {/* Stacked capacity bar. Fill maps against a scale where the capacity
+              ceiling sits at a fixed mark; anything past it reads as breach. */}
+          <div className="relative h-3 w-full rounded-full bg-slate-100 ring-1 ring-inset ring-slate-200/70">
             <div className="flex h-full w-full overflow-hidden rounded-full">
               {capacitySegments.map((seg) => (
                 <span
@@ -816,39 +824,56 @@ function PhysicalSpaceIndicator({ row, index, over, near, util }) {
                 />
               ))}
             </div>
+            {/* Soft breach wash beyond the ceiling — subtle, not hatched */}
+            {over && (
+              <span
+                className="pointer-events-none absolute inset-y-0 rounded-r-full bg-rose-500/10"
+                style={{ left: `${ceilingLeft}%`, right: 0 }}
+              />
+            )}
+            {/* Crisp ceiling marker with a small cap */}
             <span
-              className={`absolute -top-1 bottom-[-4px] w-0.5 rounded ${over ? 'bg-rose-600' : 'bg-slate-700'}`}
+              className={`absolute -top-1.5 -bottom-1.5 w-px ${over ? 'bg-rose-500' : 'bg-slate-400'}`}
               style={{ left: `${ceilingLeft}%` }}
               title={`Capacity ceiling: ${row.capacity.toLocaleString()} units`}
-            />
-            <span
-              className={`absolute -top-[18px] -translate-x-1/2 whitespace-nowrap px-1 text-[9px] font-bold uppercase tracking-wide ${
-                over ? 'text-rose-600' : 'text-slate-500'
-              }`}
-              style={{ left: `${ceilingLeft}%` }}
             >
-              Ceiling
+              <span className={`absolute -top-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${over ? 'bg-rose-500' : 'bg-slate-400'}`} />
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
-            <span className="text-slate-400">Fill</span>
-            <span className="tabular-nums text-slate-800">{projected.toLocaleString()}</span>
+          {/* Fill / Cap readout with the overage folded in — no redundant pill */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fill</span>
+              <span className="font-bold tabular-nums text-slate-900">{projected.toLocaleString()}</span>
+            </span>
             <span className="text-slate-300">/</span>
-            <span className="text-slate-400">Cap</span>
-            <span className="tabular-nums text-slate-800">{row.capacity.toLocaleString()}</span>
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cap</span>
+              <span className="font-bold tabular-nums text-slate-900">{row.capacity.toLocaleString()}</span>
+            </span>
+            <span className="text-slate-200">·</span>
+            {over ? (
+              <span className="font-bold text-rose-600">
+                {overflowUnits.toLocaleString()} over ceiling
+              </span>
+            ) : (
+              <span className="font-semibold text-emerald-600">
+                {headroomUnits.toLocaleString()} headroom
+              </span>
+            )}
           </div>
         </div>
       </div>
       {/* Inventory legend */}
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
         {capacitySegments.map((seg) => (
           <span
             key={seg.key}
-            className="inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9.5px] text-slate-500 ring-1 ring-slate-200/70"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2 py-1 text-[10px] font-medium text-slate-500 shadow-sm ring-1 ring-slate-200/70"
           >
-            <span className={`h-1.5 w-1.5 rounded-sm ${seg.dot}`} />
+            <span className={`h-2 w-2 rounded-full ${seg.dot}`} />
             {seg.label}
-            <span className="font-semibold tabular-nums text-slate-700">{row[seg.key].toLocaleString()}</span>
+            <span className="font-bold tabular-nums text-slate-800">{row[seg.key].toLocaleString()}</span>
           </span>
         ))}
       </div>
@@ -936,25 +961,6 @@ function StoreHeader({ row, iconTone, children }) {
   )
 }
 
-// Small pill for macro action triggers, scoped to a store's issue.
-function MacroActionButton({ label, icon: AIcon, onRun }) {
-  return (
-    <button
-      onClick={() => onRun(label)}
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-    >
-      <AIcon className="h-3 w-3" />
-      {label}
-    </button>
-  )
-}
-
-function useMacroAction(row) {
-  const push = useToast()
-  return (label) =>
-    push(`${label} queued for ${row.id} (${row.tier}). Apply before the next dispatch to resolve this store.`)
-}
-
 // View 1 row — Capacity Breach focus (physical space only).
 function CapacityBreachRow({ row, index }) {
   const projected = row.onHand + row.onOrder + row.inTransit + row.newAllocation
@@ -962,7 +968,6 @@ function CapacityBreachRow({ row, index }) {
   const over = util >= 100
   const near = util >= 90 && util < 100
   const vs = velocityStatus(row.storeWos)
-  const runAction = useMacroAction(row)
   return (
     <div
       className={`group/cap animate-nodeIn overflow-hidden rounded-2xl border bg-gradient-to-b from-white to-slate-50/60 p-3.5 shadow-premium ring-1 ring-white/50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-premium-lg ${
@@ -992,13 +997,6 @@ function CapacityBreachRow({ row, index }) {
       <div className="mt-3">
         <PhysicalSpaceIndicator row={row} index={index} over={over} near={near} util={util} />
       </div>
-      {(over || near) && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Macro Actions</span>
-          <MacroActionButton label="Trim Allocation" icon={TrendingDown} onRun={runAction} />
-          <MacroActionButton label="Stagger Delivery" icon={Timer} onRun={runAction} />
-        </div>
-      )}
     </div>
   )
 }
@@ -1009,7 +1007,6 @@ function StoreVelocityRow({ row, index }) {
   const T = velocityToneMap[vs.tone]
   const projected = row.onHand + row.onOrder + row.inTransit + row.newAllocation
   const over = projected / row.capacity >= 1
-  const runAction = useMacroAction(row)
   return (
     <div
       className={`group/cap animate-nodeIn overflow-hidden rounded-2xl border bg-gradient-to-b from-white to-slate-50/60 p-3.5 shadow-premium ring-1 ring-white/50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-premium-lg ${
@@ -1033,13 +1030,6 @@ function StoreVelocityRow({ row, index }) {
       <div className="mt-3">
         <StoreVelocityIndicator row={row} />
       </div>
-      {vs.key === 'review' && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Macro Actions</span>
-          <MacroActionButton label="Review Replen" icon={PauseCircle} onRun={runAction} />
-          <MacroActionButton label="Adjust Store Multiplier" icon={SlidersHorizontal} onRun={runAction} />
-        </div>
-      )}
     </div>
   )
 }
@@ -1047,7 +1037,7 @@ function StoreVelocityRow({ row, index }) {
 // Physical breach % = total fill / capacity.
 const capacityUtil = (r) => (r.onHand + r.onOrder + r.inTransit + r.newAllocation) / r.capacity
 
-function CapacityTable({ rows, onExport }) {
+function CapacityTable({ rows }) {
   // Two separate lenses on the same stores, switchable via a segmented control.
   const [view, setView] = useState('capacity')
 
@@ -1092,13 +1082,13 @@ function CapacityTable({ rows, onExport }) {
             <button
               key={v.key}
               onClick={() => setView(v.key)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 active ? 'bg-white text-slate-800 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <VIcon className={`h-3.5 w-3.5 ${active ? 'text-indigo-500' : 'text-slate-400'}`} />
+              <VIcon className={`h-3.5 w-3.5 ${active ? 'text-blue-500' : 'text-slate-400'}`} />
               {v.label}
-              <span className={`rounded-full px-1.5 py-px text-[9.5px] font-extrabold ${active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'}`}>
+              <span className={`rounded-full px-1.5 py-px text-[9.5px] font-extrabold ${active ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
                 {v.count}
               </span>
             </button>
@@ -1128,7 +1118,7 @@ function CapacityTable({ rows, onExport }) {
           ),
         )}
       </div>
-      <TruncationFooter shown={MAX_STORES} total={rows.length} noun="stores" onExport={onExport} />
+      <TruncationFooter shown={MAX_STORES} total={rows.length} noun="stores" />
     </div>
   )
 }
@@ -1160,24 +1150,28 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
   return (
     <div
       ref={innerRef}
-      className={`overflow-hidden rounded-2xl border bg-white transition-all duration-300 ${
+      className={`relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 ${
         open ? `${sev.ring} shadow-premium-lg` : 'border-slate-200/80 shadow-premium ring-1 ring-white/50 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-premium-lg'
       }`}
     >
+      {/* Severity rail — reinforces Critical vs Warning at a glance */}
+      <span className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${sev.rail}`} />
       <button
         onClick={onToggle}
         aria-expanded={open}
-        className={`flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition ${open ? tone.headerBg : 'hover:bg-slate-50/70'}`}
+        className={`flex w-full items-center gap-2.5 py-3.5 pl-5 pr-4 text-left transition ${open ? tone.headerBg : 'hover:bg-slate-50/70'}`}
       >
         <span
           className={`relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 shadow-inner ring-1 ring-slate-200/60 transition-transform duration-300 ${tone.chip} ${open ? 'scale-105' : ''}`}
         >
           <DrawerIcon className="h-4 w-4" />
+          {/* Small reinforcing marker; the rail + label chip carry severity, so
+              this stays subtle (no glow) to avoid over-signaling. */}
           <span
-            className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${sev.dot} ${sev.glow}`}
+            className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white ${sev.dot}`}
           />
         </span>
-        <span className={`text-sm font-bold uppercase tracking-wide ${open ? tone.header : 'text-slate-700'}`}>
+        <span className={`text-sm font-bold tracking-tight ${open ? tone.header : 'text-slate-800'}`}>
           {item.title}
         </span>
         {typeof item.planCount === 'number' && (
@@ -1186,22 +1180,26 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
             {item.planCount} {item.planCount === 1 ? 'Plan' : 'Plans'}
           </span>
         )}
-        {item.lostSalesValue && (
-          <span className="hidden rounded-md bg-white/70 px-2 py-0.5 text-[11px] font-bold text-rose-700 shadow-sm ring-1 ring-rose-100 sm:inline-block">
-            {item.lostSalesValue}
+        {/* Right group — impact then severity, so the eye scans title → impact → severity */}
+        <span className="ml-auto flex items-center gap-2">
+          {item.lostSalesValue && (
+            <span className="hidden items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50/80 px-2.5 py-0.5 text-[11px] font-semibold shadow-sm md:inline-flex">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Impact</span>
+              <span className={sev.impact}>{formatImpact(item.lostSalesValue)}</span>
+            </span>
+          )}
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sev.labelChip}`}>
+            {sev.label}
           </span>
-        )}
-        <span className={`ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${sev.labelChip}`}>
-          {sev.label}
+          <ChevronDown
+            className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+          />
         </span>
-        <ChevronDown
-          className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
-        />
       </button>
 
       {/* Collapsed preview — the What one-liner (from the old Playbook card) */}
       {!open && hasAction && item.what && (
-        <button onClick={onToggle} className="w-full px-4 pb-3.5 text-left">
+        <button onClick={onToggle} className="w-full pb-3.5 pl-5 pr-4 text-left">
           <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
             <span className="font-semibold text-slate-600">What: </span>
             {item.what}
@@ -1232,8 +1230,8 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
           <div
             className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-xs shadow-sm transition-all duration-300 ${
               evidenceOpen
-                ? 'border-indigo-200/70 bg-gradient-to-r from-indigo-50/70 via-sky-50/50 to-white'
-                : 'border-slate-200 bg-gradient-to-r from-slate-50 to-white hover:border-indigo-200/70 hover:from-indigo-50/50 hover:to-white'
+                ? 'border-blue-200/70 bg-gradient-to-r from-blue-50/70 via-sky-50/50 to-white'
+                : 'border-slate-200 bg-gradient-to-r from-slate-50 to-white hover:border-blue-200/70 hover:from-blue-50/50 hover:to-white'
             }`}
           >
             <button
@@ -1244,7 +1242,7 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
               <span
                 className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg shadow-sm ring-1 transition-all duration-300 ${
                   evidenceOpen
-                    ? 'bg-gradient-to-br from-indigo-500 to-sky-500 text-white ring-white/40'
+                    ? 'bg-gradient-to-br from-blue-500 to-sky-500 text-white ring-white/40'
                     : 'bg-white text-slate-400 ring-slate-200'
                 }`}
               >
@@ -1257,12 +1255,13 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
                 — {item.directoryHint}
               </span>
               <ChevronRight
-                className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${evidenceOpen ? 'rotate-90 text-indigo-500' : 'text-slate-400'}`}
+                className={`h-4 w-4 flex-shrink-0 transition-transform duration-300 ${evidenceOpen ? 'rotate-90 text-blue-500' : 'text-slate-400'}`}
               />
             </button>
             <ExportAllButton
               onExport={exportBucket}
               size="sm"
+              label={`Export all ${item.type === 'poTable' ? 'style-colors' : item.type === 'capacityTable' ? 'stores' : 'plans'}`}
               title={`${item.trigger || `Export ${item.title} list`} — exports ALL records (every plan, style-color & store), not just the top-ranked ones shown`}
             />
           </div>
@@ -1270,7 +1269,7 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
           {evidenceOpen && (
             <div className="animate-drawerIn mt-2 rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50/80 to-white p-3 shadow-inner">
               <div className="mb-2.5 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-indigo-500 shadow-sm ring-1 ring-slate-200">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-blue-500 shadow-sm ring-1 ring-slate-200">
                   <FolderTree className="h-3.5 w-3.5" />
                 </span>
                 {item.directoryTitle}
@@ -1280,11 +1279,11 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
                   <span
                     className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold normal-case tracking-normal shadow-sm ${
                       plansTruncated
-                        ? 'border-indigo-200/70 bg-gradient-to-r from-indigo-50 to-sky-50 text-indigo-700'
+                        ? 'border-blue-200/70 bg-gradient-to-r from-blue-50 to-sky-50 text-blue-700'
                         : 'border-slate-200 bg-white text-slate-500'
                     }`}
                   >
-                    <ArrowUpNarrowWide className={`h-3 w-3 ${plansTruncated ? 'text-indigo-500' : 'text-slate-400'}`} />
+                    <ArrowUpNarrowWide className={`h-3 w-3 ${plansTruncated ? 'text-blue-500' : 'text-slate-400'}`} />
                     {plansTruncated
                       ? `Top ${MAX_PLANS} of ${totalPlans} plans by impact`
                       : `All ${totalPlans} ${totalPlans === 1 ? 'plan' : 'plans'} by impact`}
@@ -1305,7 +1304,7 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
               {item.type === 'poTable' ? (
                 <PoTable rows={item.rows} dcFlow={item.dcFlow} />
               ) : item.type === 'capacityTable' ? (
-                <CapacityTable rows={item.rows} onExport={exportBucket} />
+                <CapacityTable rows={item.rows} />
               ) : (
                 <div className="space-y-1 font-sans">
                   {rankPlans(item.plans)
@@ -1322,7 +1321,7 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
                     ))}
                   {plansTruncated && (
                     <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
-                      <TruncationFooter shown={MAX_PLANS} total={totalPlans} noun="plans" onExport={exportBucket} />
+                      <TruncationFooter shown={MAX_PLANS} total={totalPlans} noun="plans" />
                     </div>
                   )}
                 </div>
@@ -1335,13 +1334,37 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
   )
 }
 
+// Impact ranking for sort — pulls the leading dollar figure out of the impact
+// string when present, else 0, so "Sort: Impact" orders by money at stake.
+function impactValue(item) {
+  const m = /\$\s*([\d,]+)/.exec(item.lostSalesValue || '')
+  return m ? Number(m[1].replace(/,/g, '')) : 0
+}
+
+const SORTS = {
+  severity: { label: 'Severity', fn: (a, b) => severityRank(a) - severityRank(b) || impactValue(b) - impactValue(a) },
+  impact: { label: 'Impact', fn: (a, b) => impactValue(b) - impactValue(a) },
+  plans: { label: 'Plans', fn: (a, b) => (b.planCount || 0) - (a.planCount || 0) },
+}
+const severityRank = (c) => (severityMap[c.severity]?.rank ?? 9)
+
 const InsightsStudio = forwardRef(function InsightsStudio(
   { openMap, onToggle, onToggleAll, refs },
   ref,
 ) {
+  const [sevFilter, setSevFilter] = useState('all') // 'all' | 'critical' | 'warning'
+  const [sortKey, setSortKey] = useState('severity')
+
   const criticalCount = insightCards.filter((c) => c.severity === 'critical').length
   const warningCount = insightCards.filter((c) => c.severity === 'warning').length
-  const allOpen = insightCards.every((c) => openMap[c.id])
+
+  const visibleCards = insightCards
+    .filter((c) => sevFilter === 'all' || c.severity === sevFilter)
+    .slice()
+    .sort(SORTS[sortKey].fn)
+
+  const allOpen = visibleCards.length > 0 && visibleCards.every((c) => openMap[c.id])
+  const toggleSev = (key) => setSevFilter((prev) => (prev === key ? 'all' : key))
 
   return (
     <section ref={ref} className="scroll-mt-24">
@@ -1351,49 +1374,95 @@ const InsightsStudio = forwardRef(function InsightsStudio(
         subtitle="What → Why → Next Step · evidence · export"
       />
       <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-premium-lg ring-1 ring-white/50">
-        <div className="relative flex flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden border-b border-white/5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 px-5 py-4 text-white">
-          <span className="pointer-events-none absolute -inset-24 opacity-40 aurora [background-image:radial-gradient(600px_180px_at_10%_-40%,rgba(99,102,241,0.5),transparent),radial-gradient(520px_180px_at_92%_140%,rgba(14,165,233,0.4),transparent),radial-gradient(420px_160px_at_55%_-20%,rgba(168,85,247,0.35),transparent)]" />
-          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+        <div className="relative flex flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden border-b border-slate-200/70 bg-gradient-to-r from-blue-50 via-sky-50 to-white px-5 py-4 text-slate-700">
+          <span className="pointer-events-none absolute -inset-24 opacity-60 aurora [background-image:radial-gradient(600px_180px_at_10%_-40%,rgba(59,130,246,0.16),transparent),radial-gradient(520px_180px_at_92%_140%,rgba(14,165,233,0.14),transparent),radial-gradient(420px_160px_at_55%_-20%,rgba(96,165,250,0.12),transparent)]" />
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
           <div className="relative flex items-center gap-2.5">
-            <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
-              <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-indigo-400/40 to-sky-400/30 opacity-70 blur-md" />
+            <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-500 text-white shadow-sm ring-1 ring-white/60">
+              <span className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br from-blue-400/40 to-sky-400/30 opacity-60 blur-md" />
               <Sparkles className="relative h-4 w-4" />
             </span>
             <div>
-              <p className="text-sm font-bold tracking-wide">Diagnostic Insights & Recommended Actions</p>
-              <p className="text-[11px] text-slate-300">
+              <p className="text-sm font-bold tracking-wide text-slate-800">Diagnostic Insights & Recommended Actions</p>
+              <p className="text-[11px] text-slate-500">
                 One card per issue — action narrative up top, drill-down evidence one click away
               </p>
             </div>
           </div>
-          <div className="relative ml-auto flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="text-lg font-bold tabular-nums">{insightCards.length}</span>
-              <span className="text-slate-300">Insights</span>
+          <div className="relative ml-auto flex flex-wrap items-center gap-2 text-xs sm:gap-3">
+            <span className="hidden items-center gap-1.5 sm:flex">
+              <span className="text-lg font-bold tabular-nums text-slate-800">{insightCards.length}</span>
+              <span className="text-slate-500">Insights</span>
             </span>
-            <span className="h-8 w-px bg-white/15" />
-            <span className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 shadow-[0_0_8px_2px_rgba(251,113,133,0.6)]" />
-              <span className="font-semibold tabular-nums">{criticalCount}</span>
-              <span className="text-slate-300">Critical</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_2px_rgba(251,191,36,0.6)]" />
-              <span className="font-semibold tabular-nums">{warningCount}</span>
-              <span className="text-slate-300">Warning</span>
-            </span>
-            <span className="h-8 w-px bg-white/15" />
+            <span className="hidden h-8 w-px bg-slate-200 sm:block" />
+            {/* Clickable severity filters */}
+            <button
+              onClick={() => toggleSev('critical')}
+              aria-pressed={sevFilter === 'critical'}
+              title="Filter to Critical insights"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-semibold transition ${
+                sevFilter === 'critical' ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200' : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+              <span className="tabular-nums">{criticalCount}</span>
+              <span className="hidden text-slate-500 sm:inline">Critical</span>
+            </button>
+            <button
+              onClick={() => toggleSev('warning')}
+              aria-pressed={sevFilter === 'warning'}
+              title="Filter to Warning insights"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-semibold transition ${
+                sevFilter === 'warning' ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 'text-slate-600 hover:bg-white/70'
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <span className="tabular-nums">{warningCount}</span>
+              <span className="hidden text-slate-500 sm:inline">Warning</span>
+            </button>
+            <span className="h-8 w-px bg-slate-200" />
+            {/* Sort control */}
+            <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/80 px-2 py-1 font-semibold text-slate-600 shadow-sm">
+              <ArrowUpNarrowWide className="h-3.5 w-3.5 text-slate-400" />
+              <span className="hidden text-slate-500 sm:inline">Sort</span>
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value)}
+                className="cursor-pointer bg-transparent text-slate-700 outline-none [&>option]:text-slate-800"
+                title="Sort insights"
+              >
+                {Object.entries(SORTS).map(([key, s]) => (
+                  <option key={key} value={key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               onClick={() => onToggleAll(!allOpen)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/20"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-500 to-sky-500 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm shadow-blue-500/20 transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/30"
             >
               {allOpen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-              {allOpen ? 'Collapse all' : 'Expand all'}
+              <span className="hidden sm:inline">{allOpen ? 'Collapse all' : 'Expand all'}</span>
             </button>
           </div>
         </div>
+        {/* Active-filter strip */}
+        {sevFilter !== 'all' && (
+          <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-5 py-2 text-[11px] text-slate-500">
+            <span className="font-semibold">
+              Showing {visibleCards.length} {sevFilter} {visibleCards.length === 1 ? 'insight' : 'insights'}
+            </span>
+            <button
+              onClick={() => setSevFilter('all')}
+              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
         <div className="space-y-3 p-5">
-          {insightCards.map((item) => (
+          {visibleCards.map((item) => (
             <InsightDrawer
               key={item.id}
               item={item}

@@ -34,11 +34,11 @@ function Workspace() {
     <div className="min-h-screen">
       {/* App bar */}
       <header className="sticky top-0 z-30 border-b border-white/60 bg-white/65 shadow-[0_1px_0_rgba(15,23,42,0.04),0_10px_30px_-18px_rgba(15,23,42,0.3)] backdrop-blur-xl">
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white shadow-premium ring-1 ring-white/10">
-              <span className="pointer-events-none absolute -inset-2 bg-[conic-gradient(from_180deg,rgba(99,102,241,0.5),rgba(14,165,233,0.4),rgba(168,85,247,0.5),rgba(99,102,241,0.5))] opacity-60 blur-md aurora" />
+            <div className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-sky-700 text-white shadow-premium ring-1 ring-white/20">
+              <span className="pointer-events-none absolute -inset-2 bg-[conic-gradient(from_180deg,rgba(59,130,246,0.6),rgba(14,165,233,0.5),rgba(96,165,250,0.6),rgba(59,130,246,0.6))] opacity-70 blur-md aurora" />
               <Boxes className="relative h-5 w-5" />
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 to-transparent" />
             </div>
