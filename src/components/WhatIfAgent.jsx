@@ -1,12 +1,10 @@
+import { useState } from 'react'
 import {
   Sparkles,
   FlaskConical,
   ExternalLink,
   Settings2,
   Gauge,
-  ShieldAlert,
-  DollarSign,
-  Compass,
   Copy,
   TrendingDown,
   TrendingUp,
@@ -85,38 +83,79 @@ function CardTitle({ icon: Icon, children, tint = 'blue', number }) {
   )
 }
 
-// ── Cause & Effect row (parameter → effect) ──────────────────────────────
-function CauseEffect({ label, value, effect }) {
+// ── Settings delta row: exact Base → Scenario value + direct impact ──────
+function SettingDelta({ row, onCopy }) {
+  const tone = dirTone[row.impactDir] || dirTone.neutral
+  const [expanded, setExpanded] = useState(false)
+  const ent = row.entities
+  const ids = ent?.ids || []
+  const preview = 6
+  const shown = expanded ? ids : ids.slice(0, preview)
+  const hidden = ids.length - preview
   return (
-    <div className="flex flex-col gap-1 py-2.5">
-      <p className="text-[13px] leading-relaxed text-slate-700">
-        <span className="font-bold text-slate-500">{label}: </span>
-        <span className="font-semibold text-slate-800">{value}</span>
+    <div className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 ${row.changed ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-200 bg-slate-50/50'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[13px] font-bold text-slate-700">{row.setting}</p>
+        {row.changed ? (
+          <span className="inline-flex flex-shrink-0 items-center rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-700">
+            Changed
+          </span>
+        ) : (
+          <span className="inline-flex flex-shrink-0 items-center rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+            No change
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="text-slate-400">Base</span>
+        <span className="rounded-md bg-white px-1.5 py-0.5 font-mono font-semibold text-slate-500 ring-1 ring-slate-200">{row.base}</span>
+        <ArrowRight className="h-3 w-3 text-slate-400" />
+        <span className="text-slate-400">Scenario</span>
+        <span className={`rounded-md px-1.5 py-0.5 font-mono font-bold ring-1 ${row.changed ? 'bg-indigo-100 text-indigo-700 ring-indigo-200' : 'bg-white text-slate-500 ring-slate-200'}`}>{row.value}</span>
+      </div>
+      <p className={`text-[11px] font-semibold leading-relaxed ${tone.text}`}>
+        <span className="font-bold text-slate-400">What it changes: </span>
+        {row.impact}
       </p>
-      <p className="flex items-start gap-1.5 rounded-lg bg-slate-50/80 px-2.5 py-1.5 text-xs leading-relaxed text-slate-500">
-        <ArrowRight className="mt-0.5 h-3 w-3 flex-shrink-0 text-slate-400" />
-        <span>
-          <span className="font-bold not-italic text-slate-400">Effect: </span>
-          {effect}
-        </span>
-      </p>
-    </div>
-  )
-}
 
-// ── Executive summary headline tile ──────────────────────────────────────
-function StatTile({ label, value, sub, dir = 'good' }) {
-  const tone = dirTone[dir] || dirTone.neutral
-  const Trend = dir === 'bad' ? TrendingUp : TrendingDown
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/70 p-4 shadow-premium ring-1 ring-white/50">
-      <span className={`absolute left-0 top-0 h-full w-1 ${dir === 'good' ? 'bg-gradient-to-b from-emerald-300 to-teal-300' : dir === 'bad' ? 'bg-gradient-to-b from-rose-300 to-pink-300' : 'bg-gradient-to-b from-indigo-300 to-sky-300'}`} />
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-1.5 text-2xl font-extrabold tabular-nums text-slate-900">{value}</p>
-      <p className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${tone.text}`}>
-        <Trend className="h-3 w-3" />
-        {sub}
-      </p>
+      {ids.length > 0 && (
+        <div className="mt-0.5 border-t border-indigo-100 pt-1.5">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Impacted {ent.kind} ({ids.length})
+            </span>
+            <button
+              onClick={() => onCopy(ids, ent.kind)}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 transition hover:bg-indigo-100"
+            >
+              <Copy className="h-3 w-3" /> Copy all
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {shown.map((id) => (
+              <span key={id} className="rounded-md bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">
+                {id}
+              </span>
+            ))}
+            {hidden > 0 && !expanded && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="rounded-md bg-indigo-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-indigo-700 transition hover:bg-indigo-200"
+              >
+                +{hidden} more
+              </button>
+            )}
+            {expanded && ids.length > preview && (
+              <button
+                onClick={() => setExpanded(false)}
+                className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 transition hover:bg-slate-200"
+              >
+                Show less
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -144,88 +183,146 @@ function TradeTile({ icon: Icon, label, value, delta, pct, dir, money }) {
 }
 
 // ── Scenario overview card ───────────────────────────────────────────────
+// A thoughtful, structured plan brief — written as if an LLM synthesised the
+// calculated plan metrics into an overview, key changes, and projected impact.
 function ScenarioCard({ scenario, recommended }) {
   return (
-    <div className={`relative flex flex-col gap-2 overflow-hidden rounded-2xl border bg-white p-4 shadow-premium ring-1 transition hover:-translate-y-0.5 hover:shadow-premium-lg ${recommended ? 'border-violet-200 ring-violet-100' : 'border-slate-200/80 ring-white/50'}`}>
-      {recommended && (
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
-          <BadgeCheck className="h-3 w-3" /> Recommended
-        </span>
-      )}
-      <div className="flex items-center gap-2">
-        <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-sm ${recommended ? 'bg-gradient-to-br from-violet-400 to-fuchsia-400' : 'bg-gradient-to-br from-indigo-400 to-sky-400'}`}>
+    <div className={`relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-premium ring-1 transition hover:-translate-y-0.5 hover:shadow-premium-lg ${recommended ? 'border-violet-200 ring-violet-100' : 'border-slate-200/80 ring-white/50'}`}>
+      {/* Header band */}
+      <div className={`flex items-center gap-2.5 border-b border-slate-100 px-4 py-3 ${recommended ? 'bg-gradient-to-r from-violet-50/80 to-white' : 'bg-gradient-to-r from-indigo-50/60 to-white'}`}>
+        <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-sm ${recommended ? 'bg-gradient-to-br from-violet-400 to-fuchsia-400' : 'bg-gradient-to-br from-indigo-400 to-sky-400'}`}>
           <FlaskConical className="h-4 w-4" />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-extrabold text-slate-800">{scenario.name}</p>
           <p className="font-mono text-[10px] font-semibold text-slate-400">{scenario.code}</p>
         </div>
-      </div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Plan specific to Allocation Scenario</p>
-      <p className="text-[13px] leading-relaxed text-slate-600">{scenario.overview}</p>
-    </div>
-  )
-}
-
-// ── Agent Action Playbook step ───────────────────────────────────────────
-function ActionStep({ index, action, onCopy }) {
-  const tone = dirTone[action.impactDir] || dirTone.neutral
-  return (
-    <div className="group relative flex gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-premium ring-1 ring-white/50 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-premium-lg">
-      <div className="flex flex-shrink-0 flex-col items-center">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-sky-400 text-sm font-extrabold text-white shadow-sm">
-          {index}
-        </span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-bold text-slate-800">{action.title}</p>
-          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500">
-            <PackageCheck className="h-3 w-3" /> {action.po}
+        {!recommended && (
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+            Fallback
           </span>
-          {action.impact && (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${tone.chip}`}>
-              {action.impact}
-            </span>
-          )}
-        </div>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{action.body}</p>
-      </div>
-      <button
-        onClick={() => onCopy(action)}
-        title="Copy this action"
-        aria-label={`Copy action: ${action.title}`}
-        className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:opacity-100 group-hover:opacity-100"
-      >
-        <Copy className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  )
-}
-
-// ── AI verdict tile (confidence / upside / risk) ─────────────────────────
-const verdictMeta = {
-  confidence: { icon: Gauge, tint: 'from-emerald-400 to-teal-400', ring: 'ring-emerald-100' },
-  upside: { icon: DollarSign, tint: 'from-emerald-400 to-green-500', ring: 'ring-emerald-100' },
-  risk: { icon: ShieldAlert, tint: 'from-amber-400 to-orange-400', ring: 'ring-amber-100' },
-}
-
-function VerdictTile({ tile }) {
-  const meta = verdictMeta[tile.kind] || verdictMeta.confidence
-  const Icon = meta.icon
-  return (
-    <div className={`flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-premium ring-1 ${meta.ring} transition hover:-translate-y-0.5 hover:shadow-premium-lg`}>
-      <div className="flex items-center gap-2.5">
-        <span className={`flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br ${meta.tint} text-white shadow-sm`}>
-          <Icon className="h-4 w-4" />
-        </span>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{tile.title}</p>
-        {tile.score && (
-          <span className="ml-auto text-lg font-extrabold tabular-nums text-slate-800">{tile.score}</span>
         )}
       </div>
-      {tile.headline && <p className="text-sm font-bold text-slate-800">{tile.headline}</p>}
-      <p className="text-xs leading-relaxed text-slate-500">{tile.body}</p>
+
+      <div className="flex flex-1 flex-col gap-3.5 p-4">
+        {/* Impact — structured synthesis of the plan metrics */}
+        <div>
+          <p className="mb-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-indigo-500">
+            <Sparkles className="h-3 w-3" /> Impact
+          </p>
+          <p className="mb-2 text-[13px] font-semibold leading-snug text-slate-800">{scenario.overview.headline}</p>
+          <ul className="space-y-1.5">
+            {scenario.overview.points.map((p, i) => (
+              <li key={i} className="text-[12px] leading-relaxed text-slate-600">
+                <span className="font-bold text-slate-700">{p.label}: </span>
+                {p.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Key changes */}
+        <div>
+          <p className="mb-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+            <Settings2 className="h-3 w-3" /> Key Changes
+          </p>
+          <ul className="space-y-1">
+            {scenario.keyChanges.map((c, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-xs leading-relaxed text-slate-600">
+                <ArrowRight className="mt-0.5 h-3 w-3 flex-shrink-0 text-slate-400" />
+                <span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Projected impact */}
+        <div className="mt-auto">
+          <p className="mb-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+            <BarChart3 className="h-3 w-3" /> Impact
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {scenario.projectedImpact.map((m, i) => {
+              const tone = dirTone[m.dir] || dirTone.neutral
+              return (
+                <div key={i} className={`rounded-xl px-2.5 py-1.5 ring-1 ${tone.chip}`}>
+                  <p className="text-[9px] font-bold uppercase tracking-wide opacity-70">{m.label}</p>
+                  <p className="text-xs font-extrabold tabular-nums">{m.value} {tone.dot}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Overall comparison + soft recommendation ─────────────────────────────
+function PlanComparison({ data }) {
+  const { intro, insights = [], columns, recommendation } = data
+  return (
+    <div className="p-4">
+      {/* Plans analyzed */}
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        {columns.map((col) => (
+          <div
+            key={col.id}
+            className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-3.5 ring-1 ring-white/50"
+          >
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-extrabold text-slate-800">{col.name}</p>
+                <p className="font-mono text-[10px] font-semibold text-slate-400">{col.code}</p>
+              </div>
+            </div>
+            <p className="mt-auto text-[12px] leading-snug text-slate-500">{col.verdict}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Gen AI comparative insights */}
+      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 ring-1 ring-indigo-100/50">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-sky-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            <Sparkles className="h-3.5 w-3.5" /> AI Comparative Insights
+          </span>
+          {intro && <span className="text-[11px] font-medium text-slate-500">{intro}</span>}
+        </div>
+        <ul className="space-y-1.5">
+          {insights.map((ins, i) => {
+            const tone = dirTone[ins.dir] || dirTone.neutral
+            return (
+              <li key={i} className="flex items-start gap-2 text-[12px] leading-relaxed text-slate-600">
+                <span className="mt-1.5 flex-shrink-0 text-[10px]">{tone.dot}</span>
+                <span>
+                  <span className="font-bold text-slate-700">{ins.label}: </span>
+                  {ins.text}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+
+      {/* Soft recommendation */}
+      <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-white p-4 ring-1 ring-violet-100">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            <BadgeCheck className="h-3.5 w-3.5" /> Recommendation
+          </span>
+          <span className="text-[11px] font-bold text-slate-500">{recommendation.pick}</span>
+        </div>
+        <p className="mb-2 text-[14px] font-bold leading-snug text-slate-800">{recommendation.headline}</p>
+        <ul className="space-y-1">
+          {recommendation.points.map((p, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-[12px] leading-relaxed text-slate-600">
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-violet-500" />
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }
@@ -234,22 +331,16 @@ export default function WhatIfAgent() {
   const data = whatIfAgent
   const push = useToast()
 
-  const recommended = data.scenarios.find((s) => s.id === data.recommendedScenarioId) || data.scenarios[0]
-  const focusScenario = recommended
-
   const linkToReview = () => push(`Would open Review Recommendations for ${data.basePlan.code}.`)
   const copyEntities = (label) => push(`Copied ${label} to clipboard.`)
-  const copyAction = (action) => {
-    const text = `${action.title} [${action.po}] — ${action.body}`
-    navigator.clipboard?.writeText(text).catch(() => {})
-    push(`Copied action: ${action.title}`)
+  const copyIds = (ids, kind) => {
+    navigator.clipboard?.writeText(ids.join(', ')).catch(() => {})
+    push(`Copied ${ids.length} ${kind} to clipboard.`)
   }
-
-  const to = focusScenario.tradeOff
 
   return (
     <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-7 sm:px-6">
-      <SectionHeader icon={FlaskConical} title="What If Agent" subtitle="Purchase-order allocation report" />
+      <SectionHeader icon={FlaskConical} title="What If Agent" subtitle="DC allocation report" />
 
       {/* ── Report cover band ─────────────────────────────────────────── */}
       <Card>
@@ -275,32 +366,33 @@ export default function WhatIfAgent() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1 text-[11px] font-bold text-white shadow-sm">
-                <BadgeCheck className="h-3.5 w-3.5" /> Recommended: {recommended.tagline}
-              </span>
               <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{data.reportMeta}</span>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* ── 1 · Executive summary ─────────────────────────────────────── */}
+      {/* ── 1 · Scenario settings vs base ─────────────────────────────── */}
       <Card>
-        <CardTitle icon={Compass} tint="blue" number="1">
-          Executive Summary
+        <CardTitle icon={Settings2} tint="slate" number="1">
+          Settings Changed vs Base Plan
+          <span className="ml-2 normal-case text-[11px] font-medium text-slate-400">
+            Exact parameter deltas &amp; what they change at input (pre-allocation)
+          </span>
         </CardTitle>
-        <div className="space-y-4 p-4">
-          <p className="text-sm leading-relaxed text-slate-600">{data.aiOverview}</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {data.summaryTiles.map((t) => (
-              <StatTile key={t.id} label={t.label} value={t.value} sub={t.sub} dir={t.dir} />
-            ))}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {data.verdict.map((t) => (
-              <VerdictTile key={t.id} tile={t} />
-            ))}
-          </div>
+        <div className="grid gap-px bg-slate-100 sm:grid-cols-2">
+          {data.scenarios.map((s) => (
+            <div key={s.id} className="bg-white px-4 py-3.5">
+              <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-800">
+                {s.name}
+              </p>
+              <div className="space-y-2">
+                {s.settingsTable.map((row, i) => (
+                  <SettingDelta key={i} row={row} onCopy={copyIds} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
 
@@ -316,30 +408,15 @@ export default function WhatIfAgent() {
         </div>
       </Card>
 
-      {/* ── 3 · Scenario settings (cause & effect) ────────────────────── */}
+      {/* ── 3 · Overall comparison + soft recommendation ──────────────── */}
       <Card>
-        <CardTitle icon={Settings2} tint="slate" number="3">
-          Scenario Settings · Cause &amp; Effect
+        <CardTitle icon={CheckCircle2} tint="violet" number="3">
+          Overall Comparison &amp; Recommendation
+          <span className="ml-2 normal-case text-[11px] font-medium text-slate-400">
+            Base vs Plan 1 vs Plan 2 — at a glance
+          </span>
         </CardTitle>
-        <div className="grid gap-px bg-slate-100 sm:grid-cols-2">
-          {data.scenarios.map((s) => (
-            <div key={s.id} className="bg-white px-4 py-3.5">
-              <p className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-800">
-                {s.name}
-                {s.id === data.recommendedScenarioId && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-700">
-                    <BadgeCheck className="h-3 w-3" /> Rec.
-                  </span>
-                )}
-              </p>
-              <div className="divide-y divide-slate-100">
-                <CauseEffect label="Modify Scenario Parameters" value={s.settings.parameters} effect={s.settings.parametersEffect} />
-                <CauseEffect label="Manipulate Product Scope" value={s.settings.productScope} effect={s.settings.productScopeEffect} />
-                <CauseEffect label="Manipulate Network Breadth" value={s.settings.networkBreadth} effect={s.settings.networkBreadthEffect} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <PlanComparison data={data.planComparison} />
       </Card>
 
       {/* ── 4 · Allocation trade-off ──────────────────────────────────── */}
@@ -347,44 +424,62 @@ export default function WhatIfAgent() {
         <CardTitle icon={Gauge} tint="blue" number="4">
           Allocation Trade-off
           <span className="ml-2 normal-case text-[11px] font-medium text-slate-400">
-            {recommended.tagline} (Recommended) vs Base Plan
+            Both scenarios vs Base Plan
           </span>
         </CardTitle>
-        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <TradeTile
-            icon={TrendingDown}
-            label="Over-Allocation (Excess Risk)"
-            value={to.overAllocUsd}
-            delta={to.overAllocUsdDelta}
-            pct={to.overAllocUsdPct}
-            dir={to.overAllocUsdDir}
-            money
-          />
-          <TradeTile
-            icon={PackageCheck}
-            label="Overallocated Qty"
-            value={`${to.overAllocQty} Units`}
-            delta={to.overAllocQtyDelta}
-            pct={to.overAllocQtyPct}
-            dir={to.overAllocQtyDir}
-          />
-          <TradeTile
-            icon={TrendingUp}
-            label="Lost Sales Risk (Under-Allocation)"
-            value={to.lostSalesUsd}
-            delta={to.lostSalesUsdDelta}
-            pct={to.lostSalesUsdPct}
-            dir={to.lostSalesUsdDir}
-            money
-          />
-          <TradeTile
-            icon={BarChart3}
-            label="Unmet Demand Qty"
-            value={`${to.unmetQty} Units`}
-            delta={to.unmetQtyDelta}
-            pct={to.unmetQtyPct}
-            dir={to.unmetQtyDir}
-          />
+        <div className="divide-y divide-slate-100">
+          {data.scenarios.map((s) => {
+            const t = s.tradeOff
+            const isRec = s.id === data.recommendedScenarioId
+            return (
+              <div key={s.id} className="p-4">
+                <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-800">
+                  {s.name}
+                  {!isRec && (
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                      Fallback
+                    </span>
+                  )}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <TradeTile
+                    icon={TrendingDown}
+                    label="Over-Allocation (Excess Risk)"
+                    value={t.overAllocUsd}
+                    delta={t.overAllocUsdDelta}
+                    pct={t.overAllocUsdPct}
+                    dir={t.overAllocUsdDir}
+                    money
+                  />
+                  <TradeTile
+                    icon={PackageCheck}
+                    label="Overallocated Qty"
+                    value={`${t.overAllocQty} Units`}
+                    delta={t.overAllocQtyDelta}
+                    pct={t.overAllocQtyPct}
+                    dir={t.overAllocQtyDir}
+                  />
+                  <TradeTile
+                    icon={TrendingUp}
+                    label="Lost Sales Risk (Under-Allocation)"
+                    value={t.lostSalesUsd}
+                    delta={t.lostSalesUsdDelta}
+                    pct={t.lostSalesUsdPct}
+                    dir={t.lostSalesUsdDir}
+                    money
+                  />
+                  <TradeTile
+                    icon={BarChart3}
+                    label="Unmet Demand Qty"
+                    value={`${t.unmetQty} Units`}
+                    delta={t.unmetQtyDelta}
+                    pct={t.unmetQtyPct}
+                    dir={t.unmetQtyDir}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
         <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-2.5 text-[11px] leading-relaxed text-slate-400">
           <p>
@@ -403,16 +498,6 @@ export default function WhatIfAgent() {
         </CardTitle>
         <ComparisonTable base={data.base} scenarios={data.scenarios} pctMap={data.comparisonPct} onCopy={copyEntities} />
       </Card>
-
-      {/* ── 6 · Agent action playbook ─────────────────────────────────── */}
-      <div>
-        <SectionHeader icon={CheckCircle2} title="Agent Action Playbook" subtitle="Recommended PO-level way-forward" />
-        <div className="grid gap-3">
-          {data.actions.map((a, i) => (
-            <ActionStep key={a.id} index={i + 1} action={a} onCopy={copyAction} />
-          ))}
-        </div>
-      </div>
     </main>
   )
 }
@@ -420,17 +505,29 @@ export default function WhatIfAgent() {
 // ── Comparison table (Base vs scenarios) ─────────────────────────────────
 function ComparisonTable({ base, scenarios, pctMap, onCopy }) {
   const rows = [
+    { label: 'Eligible Stores Considered', key: 'eligibleStores' },
     { label: 'Stores Allocated', key: 'storesAllocated', copy: 'Store IDs' },
     { label: 'Styles Allocated', key: 'stylesAllocated', copy: 'Style-Colors' },
-    { label: 'Total Qty (Eaches)', key: 'totalEaches' },
-    { label: 'Total Qty (Packs)', key: 'totalPacks' },
+    { label: 'Total Qty (Eaches)', key: 'totalEaches', unit: 'Eaches' },
+    { label: 'Total Qty (Packs)', key: 'totalPacks', unit: 'Packs' },
+    { label: 'Avg FWOS', key: 'avgFwos', unit: 'Wks' },
+    { group: 'Risk & Trade-off' },
     { label: 'Excess Risk (USD)', key: 'excessUsd', money: true },
     { label: 'Overallocated Qty', key: 'overallocQty', unit: 'Units' },
     { label: 'Lost Sales (USD)', key: 'lostSalesUsd', money: true },
     { label: 'Unmet Demand Qty', key: 'unmetQty', unit: 'Units' },
     { label: 'Over Capacity', key: 'overCapacity', unit: 'Stores' },
-    { label: 'Exhausted PO Stock', key: 'exhaustedPo', unit: 'Styles' },
+    { label: 'Exhausted DC Stock', key: 'exhaustedDc', unit: 'Styles' },
+    { group: 'Allocation Drivers (Aggregated vs. Average)' },
+    { label: 'Total Min Constraints (Agg Min)', key: 'aggMin', unit: 'Eaches' },
+    { label: 'Total Max Constraints (Agg Max)', key: 'aggMax', unit: 'Eaches' },
+    { label: 'Allocated For Min', key: 'allocForMin', unit: 'Eaches' },
+    { label: 'Allocated For Demand', key: 'allocForDemand', unit: 'Eaches' },
+    { group: 'Multi-DC Logistics & Inventory Health' },
+    { label: 'Total Net Available (Remaining ATA)', key: 'remainingAta', unit: 'Eaches' },
+    { label: 'DC Inbound (IT) Consumed', key: 'dcInboundConsumed', unit: 'Eaches' },
   ]
+  const colSpan = 2 + scenarios.length
   const shortName = (s) => s.name.replace(/^Scenario \d+ · /, '')
   return (
     <div>
@@ -448,14 +545,25 @@ function ComparisonTable({ base, scenarios, pctMap, onCopy }) {
                 <th key={s.id} className="px-3 py-2.5 font-semibold">
                   <span className="flex items-center gap-1.5">
                     {shortName(s)}
-                    {s.id === 'sc-1' && <BadgeCheck className="h-3.5 w-3.5 text-violet-500" />}
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((row) => {
+            {rows.map((row, ri) => {
+              if (row.group) {
+                return (
+                  <tr key={`group-${ri}`} className="bg-slate-50/80">
+                    <td
+                      colSpan={colSpan}
+                      className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
+                      {row.group}
+                    </td>
+                  </tr>
+                )
+              }
               const baseCell = base[row.key]
               return (
                 <tr key={row.key} className="hover:bg-slate-50/60">

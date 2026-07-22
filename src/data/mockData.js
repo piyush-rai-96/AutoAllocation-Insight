@@ -875,25 +875,33 @@ export function getWorklistSummary(excludeIds = []) {
 const m = (value, delta = null, dir = 'neutral') => ({ value, delta, dir })
 
 export const whatIfAgent = {
-  insightTitle: 'Purchase Order Inventory Allocation & Network Optimization',
-  reportMeta: 'Fall 2026 Cycle · Inbound PO Allocation Study · Read-only simulation',
+  insightTitle: 'DC Inventory Allocation & Network Optimization',
+  reportMeta: 'Fall 2026 Cycle · DC Allocation Study · Read-only simulation',
   basePlan: { code: 'BP-2026-FALL-V3', name: 'Base Allocation — Fall Cycle' },
   aiOverview:
-    'The base plan leaves high-velocity outerwear exposed to stockouts while trapping depth behind loose ceilings on bulky knits. Two scenarios were evaluated against the inbound PO pool: a constraint rebalancing that reshapes min/max floors within the existing 250 doors, and a network expansion that spreads PO density across 45 new doors.',
+    'The base plan leaves high-velocity outerwear exposed to stockouts while trapping depth behind loose ceilings on bulky knits. Two scenarios were evaluated against available DC inventory: a constraint rebalancing that reshapes min/max floors within the existing 250 doors, and a network expansion that spreads DC inventory density across 45 new doors.',
   recommendedScenarioId: 'sc-1',
 
   // Baseline column used by the scenario comparison table.
   base: {
+    eligibleStores: m('250'),
     storesAllocated: m('250'),
     stylesAllocated: m('85'),
     totalEaches: m('120,000'),
     totalPacks: m('12,000'),
+    avgFwos: m('4.2'),
     excessUsd: m('$180,000'),
     overallocQty: m('6,000'),
     lostSalesUsd: m('$112,000'),
     unmetQty: m('3,740'),
     overCapacity: m('18'),
-    exhaustedPo: m('14'),
+    exhaustedDc: m('14'),
+    aggMin: m('45,000'),
+    aggMax: m('180,000'),
+    allocForMin: m('45,000'),
+    allocForDemand: m('75,000'),
+    remainingAta: m('38,000'),
+    dcInboundConsumed: m('12,000'),
   },
 
   scenarios: [
@@ -902,20 +910,53 @@ export const whatIfAgent = {
       name: 'Scenario 1 · Constraint Rebalancing',
       code: 'SCEN-2026-FALL-OPT1',
       tagline: 'Constraint Rebalancing',
-      overview:
-        'Scenario 1 adjusts unit thresholds by doubling safety stock for high-velocity outerwear and capping maximum backroom depth on bulky knits within the existing 250 stores. This directly eliminates $63,500 in lost sales while maintaining total network unit commitment.',
-      settings: {
-        parameters:
-          'Increased Min Constraint 12 → 24 units for Outerwear Core (15 Style-Colors); Decreased Max Constraint 120 → 80 units for Heavy Knits (10 Style-Colors).',
-        parametersEffect:
-          'Directly protects safety-stock floors for high-demand outerwear while preventing backroom inventory gridlock for heavy knits.',
-        productScope: 'Unchanged (0 Styles Added / Removed)',
-        productScopeEffect:
-          'Maintains baseline demand curves and ensures stable, predictable inbound PO stock depletion.',
-        networkBreadth: 'Unchanged (Store Count: 250 Doors)',
-        networkBreadthEffect:
-          'Prevents inventory dilution, keeping Forward Weeks of Supply stable at 4.2 weeks.',
+      overview: {
+        headline: 'Largest lost-sales recovery of the two — same inventory, smarter placement.',
+        points: [
+          { label: 'What drives it', text: 'Only the min/max envelope moves — the safety-stock floor is doubled on 15 high-velocity Outerwear Style-Colors and the depth ceiling is cut on 10 bulky Heavy-Knits. Door set (250) and assortment (85 styles) are held flat.' },
+          { label: 'Net result', text: 'The same 120,000-each commitment is redirected toward proven demand: lost sales fall $63.5K (−56.7%) and excess drops $38K (−21.1%) — the strongest recovery in the set.' },
+          { label: 'Coverage & risk', text: 'Forward WOS holds steady at 4.2 wks and over-capacity doors collapse 18 → 4, with no new dilution introduced — hence the recommended path.' },
+        ],
       },
+      keyChanges: [
+        'Min Constraint 12 → 24 units on Outerwear Core (15 Style-Colors)',
+        'Max Constraint 120 → 80 units on Heavy Knits (10 Style-Colors)',
+        'Door set & assortment unchanged (250 doors · 85 styles)',
+      ],
+      projectedImpact: [
+        { label: 'Lost Sales', value: '−$63.5K (−56.7%)', dir: 'good' },
+        { label: 'Excess Risk', value: '−$38.0K (−21.1%)', dir: 'good' },
+        { label: 'Over-Capacity', value: '18 → 4 doors', dir: 'good' },
+        { label: 'Forward WOS', value: '4.2 wks (stable)', dir: 'neutral' },
+      ],
+      // Exact settings changed vs Base Plan + the direct, measured impact.
+      settingsTable: [
+        {
+          setting: 'Min Constraint · Outerwear Core (15 SC)', base: '12 units', value: '24 units', changed: true,
+          impact: 'Raises the per-store minimum floor by +12 units for 15 Outerwear Style-Colors', impactDir: 'neutral',
+          entities: {
+            kind: 'Style-Colors',
+            ids: [
+              'OUTR-1042-BLK', 'OUTR-1042-NVY', 'OUTR-1057-OLV', 'OUTR-1061-BLK', 'OUTR-1061-CAM',
+              'OUTR-1078-GRY', 'OUTR-1083-BLK', 'OUTR-1090-NVY', 'OUTR-1104-KHK', 'OUTR-1112-BLK',
+              'OUTR-1119-BRN', 'OUTR-1125-OLV', 'OUTR-1131-BLK', 'OUTR-1140-NVY', 'OUTR-1156-GRY',
+            ],
+          },
+        },
+        {
+          setting: 'Max Constraint · Heavy Knits (10 SC)', base: '120 units', value: '80 units', changed: true,
+          impact: 'Lowers the per-store depth ceiling by −40 units for 10 Heavy-Knit Style-Colors', impactDir: 'neutral',
+          entities: {
+            kind: 'Style-Colors',
+            ids: [
+              'KNIT-2203-CRM', 'KNIT-2211-CHR', 'KNIT-2218-BLK', 'KNIT-2224-OAT', 'KNIT-2230-CML',
+              'KNIT-2237-GRY', 'KNIT-2245-BLK', 'KNIT-2251-RST', 'KNIT-2260-CRM', 'KNIT-2268-NVY',
+            ],
+          },
+        },
+        { setting: 'Product Scope · Styles', base: '85 styles', value: '85 styles', changed: false, impact: 'No change — same 85 Style-Colors in allocation scope', impactDir: 'neutral' },
+        { setting: 'Network Breadth · Doors', base: '250 doors', value: '250 doors', changed: false, impact: 'No change — same 250 doors eligible for allocation', impactDir: 'neutral' },
+      ],
       tradeOff: {
         overAllocUsd: '$142,000', overAllocUsdDelta: -38000, overAllocUsdPct: '-21.1%', overAllocUsdDir: 'good',
         overAllocQty: '4,730', overAllocQtyDelta: -1270, overAllocQtyPct: '-21.1%', overAllocQtyDir: 'good',
@@ -923,16 +964,24 @@ export const whatIfAgent = {
         unmetQty: '1,620', unmetQtyDelta: -2120, unmetQtyPct: '-56.7%', unmetQtyDir: 'good',
       },
       comparison: {
+        eligibleStores: m('250', 0, 'neutral'),
         storesAllocated: m('250', 0, 'neutral'),
         stylesAllocated: m('85', 0, 'neutral'),
         totalEaches: m('120,000', 0, 'neutral'),
         totalPacks: m('12,000', 0, 'neutral'),
+        avgFwos: m('4.2', 0, 'neutral'),
         excessUsd: m('$142,000', -38000, 'good'),
         overallocQty: m('4,730', -1270, 'good'),
         lostSalesUsd: m('$48,500', -63500, 'good'),
         unmetQty: m('1,620', -2120, 'good'),
         overCapacity: m('4', -14, 'good'),
-        exhaustedPo: m('3', -11, 'good'),
+        exhaustedDc: m('3', -11, 'good'),
+        aggMin: m('52,000', 7000, 'warn'),
+        aggMax: m('172,000', -8000, 'warn'),
+        allocForMin: m('52,000', 7000, 'warn'),
+        allocForDemand: m('68,000', -7000, 'good'),
+        remainingAta: m('38,000', 0, 'neutral'),
+        dcInboundConsumed: m('12,000', 0, 'neutral'),
       },
     },
     {
@@ -940,21 +989,45 @@ export const whatIfAgent = {
       name: 'Scenario 2 · Door Network Expansion',
       code: 'SCEN-2026-FALL-OPT2',
       tagline: 'Door Network Expansion',
-      overview:
-        'Scenario 2 maintains baseline store constraints while expanding allocation breadth across a new store cluster. This accelerates inbound PO consumption by distributing 15,000 additional units across 45 expansion doors.',
-      settings: {
-        parameters:
-          'Kept parameters at Base Plan settings (Min Constraint = 12 units, Max Constraint = 120 units across all Style-Colors).',
-        parametersEffect:
-          'Maintains baseline safety-stock floors, leaving high-traffic stores exposed to stockouts during demand spikes.',
-        productScope: 'Unchanged (0 Styles Added / Removed)',
-        productScopeEffect:
-          'Spreads existing style assortment across expanded doors without modifying style mix.',
-        networkBreadth:
-          'Added New Store Group "Tier-2 Regional Expansion" (+45 Stores) — Store Count 250 → 295.',
-        networkBreadthEffect:
-          'Spreads PO unit density across a broader door network, accelerating PO inventory consumption and lowering average FWOS to 3.5 weeks.',
+      overview: {
+        headline: 'Captures incremental regional volume, but dilutes coverage — the fallback.',
+        points: [
+          { label: 'What drives it', text: 'The constraint envelope is left untouched; instead the agent activates a 45-door "Tier-2 Regional Expansion" cluster (250 → 295 doors) and deploys 15,000 additional eaches to feed it.' },
+          { label: 'Net result', text: 'Spreading DC inventory across more outlets recovers $47K of lost sales (−42.0%) and trims $25K of excess (−13.8%) — a smaller recovery than Scenario 1 for a larger inventory outlay.' },
+          { label: 'Coverage & risk', text: 'The extra draw pulls Forward WOS down 4.2 → 3.5 wks and leaves 8 Style-Colors still exposed, introducing dilution risk — which is why it sits behind Scenario 1.' },
+        ],
       },
+      keyChanges: [
+        'Added "Tier-2 Regional Expansion" — +45 doors (250 → 295)',
+        'Deployed +15,000 eaches (120K → 135K) across the network',
+        'Constraints held at baseline (Min 12 · Max 120)',
+      ],
+      projectedImpact: [
+        { label: 'Lost Sales', value: '−$47.0K (−42.0%)', dir: 'good' },
+        { label: 'Excess Risk', value: '−$25.0K (−13.8%)', dir: 'good' },
+        { label: 'Over-Capacity', value: '18 → 12 doors', dir: 'good' },
+        { label: 'Forward WOS', value: '4.2 → 3.5 wks', dir: 'warn' },
+      ],
+      // Exact settings changed vs Base Plan + the direct, measured impact.
+      settingsTable: [
+        { setting: 'Min Constraint · All Style-Colors', base: '12 units', value: '12 units', changed: false, impact: 'No change — per-store minimum floor held at 12 units', impactDir: 'neutral' },
+        { setting: 'Max Constraint · All Style-Colors', base: '120 units', value: '120 units', changed: false, impact: 'No change — per-store depth ceiling held at 120 units', impactDir: 'neutral' },
+        { setting: 'Product Scope · Styles', base: '85 styles', value: '85 styles', changed: false, impact: 'No change — same 85 Style-Colors in allocation scope', impactDir: 'neutral' },
+        {
+          setting: 'Network Breadth · Doors', base: '250 doors', value: '295 doors', changed: true,
+          impact: 'Adds +45 eligible doors (Tier-2 Regional) to the allocation set', impactDir: 'neutral',
+          entities: {
+            kind: 'Added Stores',
+            ids: [
+              'STR-3101', 'STR-3104', 'STR-3108', 'STR-3112', 'STR-3115', 'STR-3119', 'STR-3123', 'STR-3127', 'STR-3130',
+              'STR-3134', 'STR-3138', 'STR-3141', 'STR-3145', 'STR-3149', 'STR-3152', 'STR-3156', 'STR-3160', 'STR-3163',
+              'STR-3167', 'STR-3171', 'STR-3174', 'STR-3178', 'STR-3182', 'STR-3185', 'STR-3189', 'STR-3193', 'STR-3196',
+              'STR-3200', 'STR-3204', 'STR-3207', 'STR-3211', 'STR-3215', 'STR-3218', 'STR-3222', 'STR-3226', 'STR-3229',
+              'STR-3233', 'STR-3237', 'STR-3240', 'STR-3244', 'STR-3248', 'STR-3251', 'STR-3255', 'STR-3259', 'STR-3262',
+            ],
+          },
+        },
+      ],
       tradeOff: {
         overAllocUsd: '$155,000', overAllocUsdDelta: -25000, overAllocUsdPct: '-13.8%', overAllocUsdDir: 'good',
         overAllocQty: '5,160', overAllocQtyDelta: -840, overAllocQtyPct: '-14.0%', overAllocQtyDir: 'good',
@@ -962,16 +1035,24 @@ export const whatIfAgent = {
         unmetQty: '2,160', unmetQtyDelta: -1580, unmetQtyPct: '-42.2%', unmetQtyDir: 'good',
       },
       comparison: {
+        eligibleStores: m('295', 45, 'good'),
         storesAllocated: m('295', 45, 'good'),
         stylesAllocated: m('85', 0, 'neutral'),
         totalEaches: m('135,000', 15000, 'good'),
         totalPacks: m('13,500', 1500, 'good'),
+        avgFwos: m('3.5', -0.7, 'warn'),
         excessUsd: m('$155,000', -25000, 'good'),
         overallocQty: m('5,160', -840, 'good'),
         lostSalesUsd: m('$65,000', -47000, 'good'),
         unmetQty: m('2,160', -1580, 'good'),
         overCapacity: m('12', -6, 'good'),
-        exhaustedPo: m('8', -6, 'good'),
+        exhaustedDc: m('8', -6, 'good'),
+        aggMin: m('53,100', 8100, 'warn'),
+        aggMax: m('212,400', 32400, 'warn'),
+        allocForMin: m('48,600', 3600, 'warn'),
+        allocForDemand: m('86,400', 11400, 'good'),
+        remainingAta: m('23,000', -15000, 'bad'),
+        dcInboundConsumed: m('22,000', 10000, 'warn'),
       },
     },
   ],
@@ -979,14 +1060,18 @@ export const whatIfAgent = {
   // Percent deltas for the comparison table, keyed [scenarioId][metricKey].
   comparisonPct: {
     'sc-1': {
-      storesAllocated: '0%', stylesAllocated: '0%', totalEaches: '0%', totalPacks: '0%',
-      excessUsd: '-21.1%', overallocQty: '-21.1%', lostSalesUsd: '-56.7%', unmetQty: '-56.7%',
-      overCapacity: '-77.8%', exhaustedPo: '-78.6%',
+      eligibleStores: '0%', storesAllocated: '0%', stylesAllocated: '0%', totalEaches: '0%', totalPacks: '0%',
+      avgFwos: '0%', excessUsd: '-21.1%', overallocQty: '-21.1%', lostSalesUsd: '-56.7%', unmetQty: '-56.7%',
+      overCapacity: '-77.8%', exhaustedDc: '-78.6%',
+      aggMin: '+15.6%', aggMax: '-4.4%', allocForMin: '+15.6%', allocForDemand: '-9.3%',
+      remainingAta: '0%', dcInboundConsumed: '0%',
     },
     'sc-2': {
-      storesAllocated: '+18.0%', stylesAllocated: '0%', totalEaches: '+12.5%', totalPacks: '+12.5%',
-      excessUsd: '-13.8%', overallocQty: '-14.0%', lostSalesUsd: '-42.0%', unmetQty: '-42.2%',
-      overCapacity: '-33.3%', exhaustedPo: '-42.9%',
+      eligibleStores: '+18.0%', storesAllocated: '+18.0%', stylesAllocated: '0%', totalEaches: '+12.5%', totalPacks: '+12.5%',
+      avgFwos: '-16.7%', excessUsd: '-13.8%', overallocQty: '-14.0%', lostSalesUsd: '-42.0%', unmetQty: '-42.2%',
+      overCapacity: '-33.3%', exhaustedDc: '-42.9%',
+      aggMin: '+18.0%', aggMax: '+18.0%', allocForMin: '+8.0%', allocForDemand: '+15.2%',
+      remainingAta: '-39.5%', dcInboundConsumed: '+83.3%',
     },
   },
 
@@ -1001,50 +1086,103 @@ export const whatIfAgent = {
   verdict: [
     { id: 'confidence', kind: 'confidence', title: 'Confidence', score: '92%', body: 'High — rebalancing maps to proven demand curves within the existing 250 doors; no assortment or breadth risk introduced.' },
     { id: 'upside', kind: 'upside', title: 'Net Financial Upside', headline: '+$101.5K', body: '$63.5K lost-sales recovered plus $38.0K excess risk avoided under Constraint Rebalancing (Scenario 1).' },
-    { id: 'risk', kind: 'risk', title: 'Primary Risk', headline: 'Expansion dilution (S2)', body: 'The fallback expansion (S2) lowers FWOS to 3.5 weeks and still leaves 8 PO styles exposed — prefer S1 unless regional volume is required.' },
+    { id: 'risk', kind: 'risk', title: 'Primary Risk', headline: 'Expansion dilution (S2)', body: 'The fallback expansion (S2) lowers FWOS to 3.5 weeks and still leaves 8 DC styles exposed — prefer S1 unless regional volume is required.' },
   ],
 
-  // Agent Action Playbook — the concrete, PO-tagged way-forward steps.
+  // Overall 3-way comparison + soft recommendation (Base vs Plan 1 vs Plan 2).
+  planComparison: {
+    intro: 'Gen AI analyzed the full value profile of all three plans and surfaced the comparison below.',
+    insights: [
+      { label: 'Lost-sales recovery', text: 'Plan 1 recovers the most — $48.5K remaining vs Base $112K (−56.7%), ahead of Plan 2 at $65K (−42.0%).', dir: 'good' },
+      { label: 'Excess risk', text: 'Both plans cut excess, but Plan 1 goes deepest: $142K vs Base $180K (−21.1%), where Plan 2 only reaches $155K (−13.8%).', dir: 'good' },
+      { label: 'Coverage stability', text: 'Plan 1 holds Avg FWOS steady at 4.2 wks; Plan 2 dilutes to 3.5 wks and leaves 8 Style-Colors exposed.', dir: 'warn' },
+      { label: 'Inventory & network cost', text: 'Plan 1 reuses the same 120K eaches and 250 doors, while Plan 2 needs +15K eaches and +45 new doors to deliver a smaller swing.', dir: 'neutral' },
+      { label: 'Over-capacity relief', text: 'Plan 1 collapses over-capacity doors 18 → 4 (−14); Plan 2 only reaches 12 (−6).', dir: 'good' },
+    ],
+    columns: [
+      {
+        id: 'base', name: 'Base Plan', code: 'BP-2026-FALL-V3', stance: 'Baseline',
+        stanceDir: 'neutral', verdict: 'Leaves outerwear exposed and depth trapped.',
+        metrics: [
+          { label: 'Lost Sales', value: '$112.0K', dir: 'bad' },
+          { label: 'Excess Risk', value: '$180.0K', dir: 'bad' },
+          { label: 'Over-Capacity', value: '18 doors', dir: 'bad' },
+          { label: 'Avg FWOS', value: '4.2 wks', dir: 'neutral' },
+        ],
+      },
+      {
+        id: 'sc-1', name: 'Plan 1 · Constraint Rebalancing', code: 'SCEN-2026-FALL-OPT1', stance: 'Recommended',
+        stanceDir: 'good', verdict: 'Best recovery, coverage held, no new risk.',
+        metrics: [
+          { label: 'Lost Sales', value: '$48.5K', delta: '−56.7%', dir: 'good' },
+          { label: 'Excess Risk', value: '$142.0K', delta: '−21.1%', dir: 'good' },
+          { label: 'Over-Capacity', value: '4 doors', delta: '−14', dir: 'good' },
+          { label: 'Avg FWOS', value: '4.2 wks', delta: 'stable', dir: 'neutral' },
+        ],
+      },
+      {
+        id: 'sc-2', name: 'Plan 2 · Door Network Expansion', code: 'SCEN-2026-FALL-OPT2', stance: 'Fallback',
+        stanceDir: 'warn', verdict: 'Adds regional reach but dilutes coverage.',
+        metrics: [
+          { label: 'Lost Sales', value: '$65.0K', delta: '−42.0%', dir: 'good' },
+          { label: 'Excess Risk', value: '$155.0K', delta: '−13.8%', dir: 'good' },
+          { label: 'Over-Capacity', value: '12 doors', delta: '−6', dir: 'good' },
+          { label: 'Avg FWOS', value: '3.5 wks', delta: '−0.7', dir: 'warn' },
+        ],
+      },
+    ],
+    recommendation: {
+      pick: 'Plan 1 · Constraint Rebalancing',
+      headline: 'Go with Plan 1 — strongest lost-sales recovery with zero added risk.',
+      points: [
+        'Recovers $63.5K lost sales (−56.7%) and trims $38K excess (−21.1%) — the best net swing of the three.',
+        'Holds FWOS steady at 4.2 wks and needs no new doors or inventory, so it carries no dilution risk.',
+        'Keep Plan 2 as fallback only if incremental Tier-2 regional volume is explicitly required.',
+      ],
+    },
+  },
+
+  // Agent Action Playbook — the concrete, DC-tagged way-forward steps.
   actions: [
     {
       id: 'a1',
-      title: 'Apply Min Constraint Override on Inbound PO #99401',
-      po: 'PO #99401',
+      title: 'Apply Min Constraint Override on DC-01 Replenishment',
+      source: 'DC-01 · North',
       impact: '+$63,500 protected',
       impactDir: 'good',
-      body: 'Update Min Constraint from 12 to 24 units for the Outerwear Style-Color List (15 Styles) directly on arriving freight to protect $63,500 in lost sales.',
+      body: 'Update Min Constraint from 12 to 24 units for the Outerwear Style-Color List (15 Styles) against DC-01 on-hand inventory to protect $63,500 in lost sales.',
     },
     {
       id: 'a2',
-      title: 'Enforce Max Capacity Ceiling on Inbound PO #99402',
-      po: 'PO #99402',
+      title: 'Enforce Max Capacity Ceiling on DC-02 Draw',
+      source: 'DC-02 · Central',
       impact: '−$38,000 excess',
       impactDir: 'good',
       body: 'Reduce Max Constraint from 120 to 80 units for the Heavy Knit Style-Color List (10 Styles) across backroom-constrained stores to lower excess holding risk by $38,000.',
     },
     {
       id: 'a3',
-      title: 'Release Open PO Balance to Expansion Store Group',
-      po: 'PO #99405',
+      title: 'Release Available DC Balance to Expansion Store Group',
+      source: 'DC Available-to-Allocate',
       impact: '15,000 eaches',
       impactDir: 'neutral',
-      body: 'Allocate 15,000 unallocated eaches from arriving PO #99405 to Store Group "Tier-2 Regional Expansion" (+45 doors) to capture incremental regional volume.',
+      body: 'Allocate 15,000 unallocated eaches from available DC on-hand to Store Group "Tier-2 Regional Expansion" (+45 doors) to capture incremental regional volume.',
     },
     {
       id: 'a4',
-      title: 'Enable PO Stockout Monitoring Alerts',
-      po: 'Outerwear POs',
+      title: 'Enable DC Stockout Monitoring Alerts',
+      source: 'Outerwear DCs',
       impact: 'Threshold < 10%',
       impactDir: 'warn',
-      body: 'Set automated threshold alerts for PO lines assigned to Outerwear Style-Colors when unallocated PO balances drop below 10% of total store demand.',
+      body: 'Set automated threshold alerts for DC on-hand assigned to Outerwear Style-Colors when available DC balances drop below 10% of total store demand.',
     },
     {
       id: 'a5',
       title: 'Execute Cross-Dock Priority Bypass',
-      po: 'PO #99401',
+      source: 'DC-01 · North',
       impact: '−$12,400 handling',
       impactDir: 'good',
-      body: 'Route 35% of incoming PO #99401 inventory straight to the top 50 flagship stores, accelerating floor setup by 3 days and reducing handling costs by $12,400.',
+      body: 'Route 35% of DC-01 outbound inventory straight to the top 50 flagship stores, accelerating floor setup by 3 days and reducing handling costs by $12,400.',
     },
   ],
 }
