@@ -22,6 +22,7 @@ import { whatIfAgent } from '../data/mockData'
 import SectionHeader from './SectionHeader'
 import { useToast } from './Toast'
 import ScenarioEvaluator from './ScenarioEvaluator'
+import ScenarioActionBar from './ScenarioActionBar'
 
 // Semantic tone for a delta direction.
 const dirTone = {
@@ -651,6 +652,16 @@ export default function WhatIfAgent() {
     push(`Copied ${ids.length} ${kind} to clipboard.`)
   }
 
+  const planName = (planId) => {
+    if (planId === 'base') return `Base Plan (${data.basePlan.code})`
+    const idx = data.scenarios.findIndex((s) => s.id === planId)
+    const s = data.scenarios[idx]
+    return s ? `Scenario ${idx + 1} · ${s.tagline || s.name}` : planId
+  }
+  const onFinalizePlan = (planId) => push(`Finalized ${planName(planId)} — other drafts archived.`)
+  const onPurgePlan = (planId) => push(`Purged ${planName(planId)}.`)
+  const onPurgeAll = () => push('Purged all plans — Base Plan and every scenario draft removed.')
+
   return (
     <main className="mx-auto max-w-[1400px] space-y-6 px-4 py-7 sm:px-6">
       <SectionHeader icon={FlaskConical} title="What If Agent" subtitle="DC allocation report" />
@@ -790,6 +801,15 @@ export default function WhatIfAgent() {
         </CardTitle>
         <ScorecardSummary base={data.base} scenarios={data.scenarios} pctMap={data.comparisonPct} onAct={push} expandedAll={scorecardOpen} />
       </Card>
+
+      {/* ── Plan lifecycle action bar ─────────────────────────────────── */}
+      <ScenarioActionBar
+        basePlan={data.basePlan}
+        scenarios={data.scenarios}
+        onFinalizePlan={onFinalizePlan}
+        onPurgePlan={onPurgePlan}
+        onPurgeAll={onPurgeAll}
+      />
     </main>
   )
 }
