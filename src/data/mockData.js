@@ -212,16 +212,50 @@ export const playbook = [
   {
     id: 'cardStoreCapacity',
     severity: 'critical',
-    title: 'Store Capacity & Total Store Velocity',
-    what:
-      'Stores are evaluated on two separate lenses. Physical Capacity: 5 stores breach backroom capacity (projected On Hand + On Order + In Transit + New Allocation past the ceiling), 1,842 units overflowing. Store Velocity (FWOS): 7 stores need review with thin forward cover (<10 FWOS), 3 sit in the Fine band (10–20), and 4 hold Healthy cover (>20).',
-    why:
-      'Physical overfill strands stock in backrooms off the sales floor, while thin forward cover (<10 FWOS) exposes stores to store-wide stockouts before the next replenishment lands. Both are macro store-health signals that item-by-item allocation tweaks cannot resolve.',
-    next:
-      'Work the two lists before dispatch — for over-capacity stores trim or stagger new allocations; for thin-cover (Needs Review) stores review store-wide replenishment or adjust the store velocity multiplier in the engine.',
+    title: 'Macro Store Health',
+    what: {
+      text: 'Stores are evaluated through two complementary lenses:',
+      badge: '14 Stores Evaluated',
+      lenses: [
+        {
+          name: 'Capacity Breach',
+          icon: 'warehouse',
+          stats: [
+            { value: '5', label: 'Over Capacity', tone: 'rose' },
+          ],
+          desc: 'Projected to exceed physical backroom capacity (On Hand + On Order + In Transit + New Allocation).',
+        },
+        {
+          name: 'Store Inventory Health',
+          icon: 'layers',
+          stats: [
+            { value: '3', label: 'Broad Understock', tone: 'rose' },
+            { value: '2', label: 'Broad Overstock', tone: 'amber' },
+            { value: '2', label: 'Imbalanced', tone: 'violet' },
+          ],
+          desc: 'Style-Color inventory distribution vs. Target Weeks of Supply across the store.',
+        },
+      ],
+    },
+    why: {
+      points: [
+        'Item-level alerts identify individual product issues.',
+        'Macro Store Health identifies systemic store-wide inventory patterns that require operational intervention before allocation dispatch.',
+        'Capacity issues and inventory health issues together provide a holistic picture of overall store readiness.',
+      ],
+    },
+    next: {
+      text: 'Prioritize stores with macro inventory issues before dispatch.',
+      points: [
+        'Resolve physical capacity breaches.',
+        'Review stores with broad understocking.',
+        'Reduce excess inventory in broadly overstocked stores.',
+        'Investigate stores exhibiting imbalanced inventory distribution.',
+      ],
+    },
     lostSales:
-      'Overfilled stores strand ~1,842 units in backrooms off the floor, while 7 thin-cover stores risk store-wide stockouts before the next replen cycle.',
-    lostSalesValue: 'Fill / Handling Risk + Thin-Cover Risk (7 stores)',
+      'Overfilled stores strand units in backrooms off the floor, while stores with broad understocking risk store-wide stockouts before the next replen cycle.',
+    lostSalesValue: 'Capacity Breach + Inventory Health Risk',
     trigger: 'Export the Macro Store Health List',
     exportBucketId: 'storeCapacity',
   },
@@ -320,7 +354,31 @@ const CAPACITY_UTILS = [
 
 // Aggregate Store WOS (total replen cover) per store — index-aligned to utils.
 // Mix of Bloated (>20), Slow (>16), Healthy (2–16) and Rapid (<2) turns.
+// Retained only for the (unchanged) Capacity Breach lens cross-reference chip.
 const CAPACITY_WOS = [24, 22, 9, 1.6, 12, 21, 6, 18, 1.4, 8, 26, 5, 3, 17]
+
+// Store Inventory Health distribution — per store, the count of eligible
+// replenishment Style Colors falling in each band against Target Weeks of Supply
+// (TWOS): [evaluated, underTarget (<TWOS), withinTarget (TWOS–1.5×TWOS),
+// overTarget (>1.5×TWOS)]. Index-aligned to CAPACITY_UTILS. Distributions are
+// tuned so classification yields 3 Broad Understock, 2 Broad Overstock and
+// 2 Imbalanced Inventory across the 14 stores.
+const CAPACITY_INV = [
+  { evaluated: 452, under: 248, healthy: 104, over: 100 }, // 55/23/22 → Broad Understock
+  { evaluated: 380, under: 182, healthy: 114, over: 84 },  // 48/30/22 → Broad Understock
+  { evaluated: 410, under: 172, healthy: 135, over: 103 }, // 42/33/25 → Broad Understock
+  { evaluated: 336, under: 67, healthy: 94, over: 175 },   // 20/28/52 → Broad Overstock
+  { evaluated: 298, under: 54, healthy: 101, over: 143 },  // 18/34/48 → Broad Overstock
+  { evaluated: 364, under: 127, healthy: 102, over: 135 }, // 35/28/37 → Imbalanced
+  { evaluated: 322, under: 103, healthy: 96, over: 123 },  // 32/30/38 → Imbalanced
+  { evaluated: 288, under: 63, healthy: 173, over: 52 },   // 22/60/18 → Balanced
+  { evaluated: 256, under: 38, healthy: 180, over: 38 },   // 15/70/15 → Balanced
+  { evaluated: 344, under: 86, healthy: 200, over: 58 },   // 25/58/17 → Balanced
+  { evaluated: 312, under: 56, healthy: 200, over: 56 },   // 18/64/18 → Balanced
+  { evaluated: 276, under: 55, healthy: 171, over: 50 },   // 20/62/18 → Balanced
+  { evaluated: 300, under: 36, healthy: 222, over: 42 },   // 12/74/14 → Balanced
+  { evaluated: 320, under: 77, healthy: 186, over: 57 },   // 24/58/18 → Balanced
+]
 
 // Store tier / cluster labels, index-aligned.
 const CAPACITY_TIERS = [
@@ -368,6 +426,8 @@ function buildCapacityRows() {
       newAllocation,
       weeklySales,
       storeWos,
+      // Store Inventory Health — Style-Color distribution vs. Target Weeks of Supply.
+      inv: CAPACITY_INV[i],
       note: `System Note: ${physicalNote}${velocityNote}`,
     }
   })
@@ -555,12 +615,12 @@ export const insights = [
     icon: '📦',
     tone: 'teal',
     iconName: 'warehouse',
-    title: 'Store Capacity & Total Store Velocity',
+    title: 'Macro Store Health',
     subtitle: 'MACRO STORE HEALTH',
     planCount: 12,
-    macro: '14 Stores Evaluated | 5 Over Physical Capacity (1,842 overflow units) | 7 Need Review (<10 FWOS) | 4 Healthy Cover (>20 FWOS)',
+    macro: '14 Stores Evaluated | 5 Over Physical Capacity | 3 Broad Understock | 2 Broad Overstock | 2 Imbalanced Inventory',
     directoryTitle: 'MACRO STORE HEALTH DIRECTORY',
-    directoryHint: 'Two lenses — Capacity Breach (fill vs. capacity) and Store Velocity (FWOS: Healthy >20 · Fine 10–20 · Needs Review <10)',
+    directoryHint: 'Two lenses — Capacity Breach (fill vs. capacity) and Store Inventory Health (Style-Color distribution vs. Target Weeks of Supply)',
     type: 'capacityTable',
     rows: buildCapacityRows(),
   },

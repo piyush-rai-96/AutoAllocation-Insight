@@ -91,6 +91,133 @@ const actionSteps = [
   { key: 'next', label: 'Next Step', num: '3' },
 ]
 
+// Render inline **bold** markers within a plain string.
+function renderInlineBold(text) {
+  return String(text)
+    .split(/(\*\*[^*]+\*\*)/g)
+    .filter(Boolean)
+    .map((part, i) =>
+      part.startsWith('**') && part.endsWith('**') ? (
+        <span key={i} className="font-bold text-slate-700">
+          {part.slice(2, -2)}
+        </span>
+      ) : (
+        <span key={i}>{part}</span>
+      ),
+    )
+}
+
+// Icon + stat-color registries for the number-forward WHAT lens cards.
+const lensIconByName = { warehouse: Warehouse, layers: Layers }
+const lensStatTone = {
+  rose: 'text-rose-600',
+  amber: 'text-amber-600',
+  violet: 'text-violet-600',
+  slate: 'text-slate-700',
+  emerald: 'text-emerald-600',
+}
+
+// WHAT — each lens as a metric-led card: headline numbers first, with the
+// definition kept as a quiet footnote so the meaning is never lost.
+function LensCards({ lenses }) {
+  return (
+    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+      {lenses.map((lens, i) => {
+        const LensIcon = lensIconByName[lens.icon] || Layers
+        return (
+          <div
+            key={i}
+            className="group rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm ring-1 ring-white/60 transition hover:border-slate-300 hover:shadow-premium"
+          >
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600">
+                <LensIcon className="h-3.5 w-3.5" />
+              </span>
+              <span className="text-[12px] font-bold text-slate-800">{lens.name}</span>
+            </div>
+            {/* Number-based summary */}
+            <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-2">
+              {lens.stats?.map((s, si) => (
+                <div key={si} className="leading-none">
+                  <span className={`text-xl font-extrabold tabular-nums ${lensStatTone[s.tone] || 'text-slate-700'}`}>
+                    {s.value}
+                  </span>
+                  <p className="mt-1 text-[9.5px] font-bold uppercase tracking-wide text-slate-400">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            {lens.desc && (
+              <p className="mt-2.5 border-t border-slate-100 pt-2 text-[10.5px] leading-relaxed text-slate-400">
+                {lens.desc}
+              </p>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// NEXT STEP — render as numbered, actionable steps (professional checklist feel).
+function ActionSteps({ points }) {
+  return (
+    <ol className="mt-2 space-y-1.5">
+      {points.map((p, i) => (
+        <li
+          key={i}
+          className="flex items-center gap-2.5 rounded-lg border border-slate-200/70 bg-white/70 px-2.5 py-1.5 text-sm text-slate-600 shadow-sm ring-1 ring-white/50"
+        >
+          <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
+            {i + 1}
+          </span>
+          <span className="leading-snug">{renderInlineBold(p)}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+// WHY (default) — clean check-marked list, tighter than a paragraph block.
+function WhyList({ points }) {
+  return (
+    <ul className="mt-2 space-y-1.5">
+      {points.map((p, i) => (
+        <li key={i} className="flex gap-2 text-sm leading-relaxed text-slate-600">
+          <ArrowRight className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
+          <span>{renderInlineBold(p)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// A What/Why/Next value can be a plain string or a { text?, points[] } object.
+// The layout is tailored per step so the block reads as a scannable brief.
+function ActionContent({ value, stepKey }) {
+  if (typeof value === 'string') {
+    return <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{renderInlineBold(value)}</p>
+  }
+  const points = value.points || []
+  return (
+    <div className="mt-0.5">
+      {(value.text || value.badge) && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {value.text && <p className="text-sm leading-relaxed text-slate-600">{renderInlineBold(value.text)}</p>}
+          {value.badge && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+              <Store className="h-3 w-3 text-slate-400" />
+              {value.badge}
+            </span>
+          )}
+        </div>
+      )}
+      {stepKey === 'what' && value.lenses?.length > 0 && <LensCards lenses={value.lenses} />}
+      {points.length > 0 &&
+        (stepKey === 'next' ? <ActionSteps points={points} /> : <WhyList points={points} />)}
+    </div>
+  )
+}
+
 function ActionBlock({ item }) {
   if (!item.what && !item.why && !item.next) return null
   return (
@@ -105,7 +232,7 @@ function ActionBlock({ item }) {
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {step.label}
               </p>
-              <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{item[step.key]}</p>
+              <ActionContent value={item[step.key]} stepKey={step.key} />
             </div>
           </div>
         ) : null,
@@ -922,6 +1049,7 @@ const FWOS_HEALTHY = 20
 const FWOS_FINE_MIN = 10
 
 // Classify a store's aggregate FWOS into a cover-health verdict.
+// Retained for the (unchanged) Capacity Breach lens cross-reference chip.
 function velocityStatus(fwos) {
   if (fwos > FWOS_HEALTHY)
     return { key: 'healthy', label: 'Healthy', sub: '>20 FWOS · ample cover', tone: 'emerald', flag: false }
@@ -930,10 +1058,86 @@ function velocityStatus(fwos) {
   return { key: 'review', label: 'Needs Review', sub: '<10 FWOS · thin cover', tone: 'amber', flag: true }
 }
 
-// Lower FWOS = thinner cover = higher review priority. Used to rank the
-// velocity view worst-first (Needs Review at the top).
-function fwosReviewPriority(fwos) {
-  return Math.max(FWOS_FINE_MIN - fwos, 0)
+// ── Store Inventory Health ────────────────────────────────────────────────
+// Every eligible replenishment Style Color is scored against its Target Weeks
+// of Supply (TWOS):
+//   Inventory < TWOS            → Under Target
+//   TWOS ≤ Inventory ≤ 1.5×TWOS → Within Target (Healthy)
+//   Inventory > 1.5×TWOS        → Over Target
+// The store is then classified by the distribution across all its Style Colors:
+//   ≥30% Under AND ≥30% Over → Imbalanced Inventory (mixed extremes)
+//   ≥40% Under               → Broad Understock
+//   ≥40% Over                → Broad Overstock
+//   otherwise                → Balanced (not surfaced in this lens)
+const INV_THRESH = { broad: 40, mixed: 30 }
+
+const inventoryHealthMeta = {
+  understock: {
+    key: 'understock', label: 'Broad Understock', emoji: '🔴', tone: 'rose',
+    chip: 'bg-rose-100 text-rose-700', border: 'border-rose-200 bg-rose-50/50',
+    dot: 'bg-rose-500', text: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', icon: 'text-rose-600 bg-rose-100',
+  },
+  overstock: {
+    key: 'overstock', label: 'Broad Overstock', emoji: '🟠', tone: 'amber',
+    chip: 'bg-amber-100 text-amber-700', border: 'border-amber-200 bg-amber-50/50',
+    dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: 'text-amber-600 bg-amber-100',
+  },
+  imbalanced: {
+    key: 'imbalanced', label: 'Imbalanced Inventory', emoji: '🟣', tone: 'violet',
+    chip: 'bg-violet-100 text-violet-700', border: 'border-violet-200 bg-violet-50/50',
+    dot: 'bg-violet-500', text: 'text-violet-700', bg: 'bg-violet-50 border-violet-200', icon: 'text-violet-600 bg-violet-100',
+  },
+}
+
+// Compute the Style-Color distribution + classification for a store row.
+// Returns null when the store has no evaluated Style Colors.
+function inventoryHealth(row) {
+  const inv = row.inv
+  if (!inv || !inv.evaluated) return null
+  const total = inv.evaluated
+  const underPct = (inv.under / total) * 100
+  const healthyPct = (inv.healthy / total) * 100
+  const overPct = (inv.over / total) * 100
+  let statusKey
+  if (underPct >= INV_THRESH.mixed && overPct >= INV_THRESH.mixed) statusKey = 'imbalanced'
+  else if (underPct >= INV_THRESH.broad) statusKey = 'understock'
+  else if (overPct >= INV_THRESH.broad) statusKey = 'overstock'
+  else statusKey = 'balanced'
+  return {
+    total,
+    under: inv.under,
+    healthy: inv.healthy,
+    over: inv.over,
+    underPct,
+    healthyPct,
+    overPct,
+    statusKey,
+    meta: inventoryHealthMeta[statusKey] || null,
+    surfaced: statusKey !== 'balanced',
+  }
+}
+
+// A store surfaces in the inventory lens only when it has a flagged pattern.
+const isInventoryFlagged = (row) => inventoryHealth(row)?.surfaced === true
+
+// Rank surfaced stores worst-first by the dominant deviation (max of under/over %).
+function inventoryPriority(row) {
+  const h = inventoryHealth(row)
+  if (!h) return -1
+  return Math.max(h.underPct, h.overPct)
+}
+
+// One-line AI Insight explaining why the store was flagged.
+function inventoryInsight(h) {
+  const u = Math.round(h.underPct)
+  const o = Math.round(h.overPct)
+  if (h.statusKey === 'understock')
+    return `${u}% of replenishment Style Colors are below their Target Weeks of Supply, indicating a store-wide understocking pattern. Review replenishment quantities before dispatch.`
+  if (h.statusKey === 'overstock')
+    return `${o}% of replenishment Style Colors exceed 1.5× their Target Weeks of Supply, indicating a store-wide overstocking pattern. Reduce replenishment before dispatch to free floor space and capital.`
+  if (h.statusKey === 'imbalanced')
+    return `${u}% of Style Colors are understocked while ${o}% are overstocked — a mixed distribution. Rebalance allocation across the assortment before dispatch.`
+  return ''
 }
 
 // Compact radial gauge showing utilization %. Ring color tracks the status band.
@@ -1064,64 +1268,94 @@ function PhysicalSpaceIndicator({ row, index, over, near, util }) {
   )
 }
 
-// Indicator 2 — Total Store Velocity. Aggregate FWOS on a 3-zone band scale
-// (Needs Review / Fine / Healthy) with a marker, a status chip and a cover
-// readout.
+// Tone map retained for the (unchanged) Capacity Breach lens FWOS cross-ref chip.
 const velocityToneMap = {
   amber: { text: 'text-amber-600', chip: 'bg-amber-100 text-amber-700', fill: 'bg-amber-500', border: 'border-amber-200 bg-amber-50/50' },
   sky: { text: 'text-sky-600', chip: 'bg-sky-100 text-sky-700', fill: 'bg-sky-500', border: 'border-sky-200 bg-sky-50/40' },
   emerald: { text: 'text-emerald-600', chip: 'bg-emerald-100 text-emerald-700', fill: 'bg-emerald-500', border: 'border-emerald-200 bg-emerald-50/40' },
 }
 
-const FWOS_SCALE_MAX = 28 // FWOS scale ceiling for the band bar
+// User-friendly inventory bands. The technical TWOS definition is kept as a
+// quiet subtitle so the meaning is never lost, but the headline label is plain.
+const invBands = [
+  { key: 'under', label: 'Understocked', hint: 'Below target cover', bar: 'bg-gradient-to-r from-rose-400 to-rose-500', soft: 'bg-rose-50', ring: 'ring-rose-100', dot: 'bg-rose-500', num: 'text-rose-600' },
+  { key: 'healthy', label: 'Healthy', hint: 'On target', bar: 'bg-gradient-to-r from-emerald-400 to-emerald-500', soft: 'bg-emerald-50', ring: 'ring-emerald-100', dot: 'bg-emerald-500', num: 'text-emerald-600' },
+  { key: 'over', label: 'Overstocked', hint: 'Above target cover', bar: 'bg-gradient-to-r from-amber-400 to-amber-500', soft: 'bg-amber-50', ring: 'ring-amber-100', dot: 'bg-amber-500', num: 'text-amber-600' },
+]
 
-function StoreVelocityIndicator({ row }) {
-  const fwos = row.storeWos
-  const vs = velocityStatus(fwos)
-  const T = velocityToneMap[vs.tone]
-  const clamp = (v) => Math.min(Math.max(v, 0), 100)
-  const markerLeft = clamp((fwos / FWOS_SCALE_MAX) * 100)
-  const reviewW = (FWOS_FINE_MIN / FWOS_SCALE_MAX) * 100
-  const fineW = ((FWOS_HEALTHY - FWOS_FINE_MIN) / FWOS_SCALE_MAX) * 100
-  const projected = row.onHand + row.onOrder + row.inTransit + row.newAllocation
+// Indicator 2 — Store Inventory Health. Distribution of eligible replenishment
+// Style Colors across Understocked / Healthy / Overstocked bands vs. TWOS, the
+// resulting store classification, and a one-line AI Insight.
+function StoreInventoryHealthCard({ row }) {
+  const h = inventoryHealth(row)
+  if (!h) return null
+  const M = h.meta
+  const pct = { under: Math.round(h.underPct), healthy: Math.round(h.healthyPct), over: Math.round(h.overPct) }
+  const count = { under: h.under, healthy: h.healthy, over: h.over }
   return (
-    <div className={`rounded-xl border p-3 ${T.border}`}>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Store Velocity · FWOS</span>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${T.chip}`}>
-          {vs.label}
-        </span>
-      </div>
-      <div className="flex items-end justify-between">
+    <div className={`overflow-hidden rounded-2xl border p-4 ${M ? M.border : 'border-slate-200 bg-slate-50/50'}`}>
+      {/* Header — headline metric */}
+      <div className="mb-3.5 flex items-end justify-between">
         <div className="flex flex-col leading-none">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Forward Cover</span>
-          <span className={`mt-1 text-2xl font-extrabold tabular-nums ${T.text}`}>
-            {fwos}
-            <span className="ml-1 text-[11px] font-bold text-slate-400">FWOS</span>
-          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Inventory Health</span>
+          <span className="mt-1 text-[10px] font-medium text-slate-400">Style Colors vs. Target Weeks of Supply</span>
         </div>
-        <span className="text-[10px] font-medium text-slate-400">Review &lt;10 · Fine 10–20 · Healthy &gt;20</span>
+        <div className="text-right leading-none">
+          <span className="text-2xl font-extrabold tabular-nums text-slate-800">{h.total.toLocaleString()}</span>
+          <span className="ml-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Style Colors</span>
+        </div>
       </div>
-      {/* 3-zone band scale (Review / Fine / Healthy) with FWOS marker */}
-      <div className="relative mt-2 flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
-        <span className="h-full bg-amber-200/70" style={{ width: `${reviewW}%` }} title="Needs Review <10 FWOS" />
-        <span className="h-full bg-sky-200/70" style={{ width: `${fineW}%` }} title="Fine 10–20 FWOS" />
-        <span className="h-full flex-1 bg-emerald-200/70" title="Healthy >20 FWOS" />
+
+      {/* At-a-glance stacked distribution bar */}
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100 ring-1 ring-inset ring-slate-200/70">
+        {invBands.map((b) => (
+          <span
+            key={b.key}
+            className={`h-full ${b.bar} transition-all duration-500`}
+            style={{ width: `${pct[b.key]}%` }}
+            title={`${b.label}: ${count[b.key].toLocaleString()} (${pct[b.key]}%)`}
+          />
+        ))}
       </div>
-      <div className="relative">
-        <span
-          className={`absolute -top-3 h-3 w-1 -translate-x-1/2 rounded-full ${T.fill} ring-2 ring-white`}
-          style={{ left: `${markerLeft}%` }}
-          title={`Aggregate Store FWOS: ${fwos}`}
-        />
+
+      {/* Three-up stat grid with friendly names */}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {invBands.map((b) => (
+          <div key={b.key} className={`rounded-xl ${b.soft} p-2.5 ring-1 ${b.ring}`}>
+            <div className="flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${b.dot}`} />
+              <span className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{b.label}</span>
+            </div>
+            <div className="mt-1.5 flex items-baseline gap-1">
+              <span className={`text-lg font-extrabold tabular-nums ${b.num}`}>{count[b.key].toLocaleString()}</span>
+              <span className="text-[11px] font-bold text-slate-400">{pct[b.key]}%</span>
+            </div>
+            <span className="text-[9.5px] font-medium text-slate-400">{b.hint}</span>
+          </div>
+        ))}
       </div>
-      <p className="mt-2.5 text-[10px] font-medium text-slate-500">
-        {vs.key === 'review'
-          ? `Thin forward cover — ${fwos} FWOS on ${row.weeklySales.toLocaleString()} wk sales; review replen before stockout.`
-          : vs.key === 'fine'
-            ? `Adequate cover — ${fwos} FWOS on ${row.weeklySales.toLocaleString()} wk sales; monitor.`
-            : `Ample cover — ${fwos} FWOS across ${projected.toLocaleString()} replen units.`}
-      </p>
+
+      {/* Status */}
+      <div className="mt-3.5 flex items-center justify-between border-t border-slate-200/70 pt-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</span>
+        {M && (
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${M.chip}`}>
+            <span className="text-[10px]">{M.emoji}</span>
+            {M.label}
+          </span>
+        )}
+      </div>
+
+      {/* AI Insight */}
+      <div className="mt-3 flex items-start gap-2 rounded-xl bg-white/70 p-2.5 ring-1 ring-slate-200/70">
+        <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md ${M ? M.icon : 'bg-slate-100 text-slate-500'}`}>
+          <Sparkles className="h-3 w-3" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">AI Insight</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-600">{inventoryInsight(h)}</p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1201,20 +1435,21 @@ function CapacityBreachRow({ row, index }) {
   )
 }
 
-// View 2 row — Store Velocity (FWOS) focus.
-function StoreVelocityRow({ row, index }) {
-  const vs = velocityStatus(row.storeWos)
-  const T = velocityToneMap[vs.tone]
+// View 2 row — Store Inventory Health focus (Style-Color distribution vs. TWOS).
+function StoreInventoryRow({ row, index }) {
+  const h = inventoryHealth(row)
+  if (!h) return null
+  const M = h.meta
   const projected = row.onHand + row.onOrder + row.inTransit + row.newAllocation
   const over = projected / row.capacity >= 1
   return (
     <div
       className={`group/cap animate-nodeIn overflow-hidden rounded-2xl border bg-gradient-to-b from-white to-slate-50/60 p-3.5 shadow-premium ring-1 ring-white/50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-premium-lg ${
-        vs.key === 'review' ? 'border-amber-200' : 'border-slate-200/80'
+        M ? M.bg.split(' ')[1] || 'border-slate-200/80' : 'border-slate-200/80'
       }`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
-      <StoreHeader row={row} iconTone={`${T.chip}`}>
+      <StoreHeader row={row} iconTone={M ? M.icon : 'bg-slate-100 text-slate-500'}>
         <span className="ml-auto flex items-center gap-1.5">
           {/* cross-reference capacity chip */}
           {over && (
@@ -1222,13 +1457,16 @@ function StoreVelocityRow({ row, index }) {
               Over Capacity
             </span>
           )}
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${T.chip}`}>
-            {vs.label}
-          </span>
+          {M && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${M.chip}`}>
+              <span className="text-[10px]">{M.emoji}</span>
+              {M.label}
+            </span>
+          )}
         </span>
       </StoreHeader>
       <div className="mt-3">
-        <StoreVelocityIndicator row={row} />
+        <StoreInventoryHealthCard row={row} />
       </div>
     </div>
   )
@@ -1238,20 +1476,25 @@ function StoreVelocityRow({ row, index }) {
 const capacityUtil = (r) => (r.onHand + r.onOrder + r.inTransit + r.newAllocation) / r.capacity
 
 function CapacityTable({ rows }) {
-  // Two separate lenses on the same stores, switchable via a segmented control.
+  // Two independent lenses on the same stores, switchable via a segmented control.
   const [view, setView] = useState('capacity')
+  // Inventory lens: optional status filter (understock / overstock / imbalanced).
+  const [invFilter, setInvFilter] = useState(null)
   const push = useToast()
 
   const overPhysical = rows.filter((r) => capacityUtil(r) >= 1).length
   const nearPhysical = rows.filter((r) => capacityUtil(r) >= 0.9 && capacityUtil(r) < 1).length
   const withinPhysical = rows.length - overPhysical - nearPhysical
-  const healthy = rows.filter((r) => velocityStatus(r.storeWos).key === 'healthy').length
-  const fine = rows.filter((r) => velocityStatus(r.storeWos).key === 'fine').length
-  const review = rows.filter((r) => velocityStatus(r.storeWos).key === 'review').length
+
+  // Inventory-health classification counts across the fleet.
+  const invFlagged = rows.filter(isInventoryFlagged)
+  const understock = invFlagged.filter((r) => inventoryHealth(r).statusKey === 'understock').length
+  const overstock = invFlagged.filter((r) => inventoryHealth(r).statusKey === 'overstock').length
+  const imbalanced = invFlagged.filter((r) => inventoryHealth(r).statusKey === 'imbalanced').length
 
   const views = [
     { key: 'capacity', label: 'Capacity Breach', icon: Warehouse, count: overPhysical },
-    { key: 'velocity', label: 'Store Velocity · FWOS', icon: Timer, count: review },
+    { key: 'inventory', label: 'Store Inventory Health', icon: Layers, count: invFlagged.length },
   ]
 
   const capacitySummary = [
@@ -1259,17 +1502,19 @@ function CapacityTable({ rows }) {
     { label: 'Near Capacity', count: nearPhysical, dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
     { label: 'Within Limit', count: withinPhysical, dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
   ]
-  const velocitySummary = [
-    { label: 'Needs Review (<10)', count: review, dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-    { label: 'Fine (10–20)', count: fine, dot: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
-    { label: 'Healthy (>20)', count: healthy, dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+  // Inventory buckets double as clickable filters (emoji + status label).
+  const inventorySummary = [
+    { key: 'understock', emoji: '🔴', label: 'Broad Understock', count: understock, dot: 'bg-rose-500', text: 'text-rose-700', bg: 'bg-rose-50 border-rose-200' },
+    { key: 'overstock', emoji: '🟠', label: 'Broad Overstock', count: overstock, dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    { key: 'imbalanced', emoji: '🟣', label: 'Imbalanced Inventory', count: imbalanced, dot: 'bg-violet-500', text: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
   ]
 
   const isCapacity = view === 'capacity'
-  const summary = isCapacity ? capacitySummary : velocitySummary
   const ranked = isCapacity
     ? [...rows].sort((a, b) => capacityUtil(b) - capacityUtil(a))
-    : [...rows].sort((a, b) => fwosReviewPriority(a.storeWos) - fwosReviewPriority(b.storeWos) === 0 ? a.storeWos - b.storeWos : fwosReviewPriority(b.storeWos) - fwosReviewPriority(a.storeWos))
+    : invFlagged
+        .filter((r) => !invFilter || inventoryHealth(r).statusKey === invFilter)
+        .sort((a, b) => inventoryPriority(b) - inventoryPriority(a))
   const visible = ranked.slice(0, MAX_STORES)
 
   const copyStoreList = () => {
@@ -1305,15 +1550,41 @@ function CapacityTable({ rows }) {
 
       {/* Summary chips for the active lens */}
       <div className="flex flex-wrap items-center gap-2">
-        {summary.map((s) => (
-          <span
-            key={s.label}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${s.bg} ${s.text}`}
+        {isCapacity
+          ? capacitySummary.map((s) => (
+              <span
+                key={s.label}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${s.bg} ${s.text}`}
+              >
+                <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+                {s.count} {s.label}
+              </span>
+            ))
+          : inventorySummary.map((s) => {
+              const active = invFilter === s.key
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setInvFilter(active ? null : s.key)}
+                  title={`Filter to ${s.label} stores`}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${s.bg} ${s.text} ${
+                    active ? 'ring-2 ring-offset-1 ring-slate-400' : 'opacity-90 hover:opacity-100'
+                  }`}
+                >
+                  <span className="text-[10px]">{s.emoji}</span>
+                  {s.count} {s.label}
+                </button>
+              )
+            })}
+        {!isCapacity && invFilter && (
+          <button
+            onClick={() => setInvFilter(null)}
+            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 shadow-sm transition hover:bg-slate-50"
           >
-            <span className={`h-2 w-2 rounded-full ${s.dot}`} />
-            {s.count} {s.label}
-          </span>
-        ))}
+            Clear filter
+          </button>
+        )}
         <button
           onClick={copyStoreList}
           title="Copy the full store list (in the current order)"
@@ -1330,11 +1601,11 @@ function CapacityTable({ rows }) {
           isCapacity ? (
             <CapacityBreachRow key={row.id} row={row} index={i} />
           ) : (
-            <StoreVelocityRow key={row.id} row={row} index={i} />
+            <StoreInventoryRow key={row.id} row={row} index={i} />
           ),
         )}
       </div>
-      <TruncationFooter shown={MAX_STORES} total={rows.length} noun="stores" />
+      <TruncationFooter shown={MAX_STORES} total={isCapacity ? rows.length : ranked.length} noun="stores" />
     </div>
   )
 }
@@ -1421,7 +1692,7 @@ function InsightDrawer({ item, open, onToggle, innerRef }) {
         <button onClick={onToggle} className="w-full pb-3.5 pl-5 pr-4 text-left">
           <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
             <span className="font-semibold text-slate-600">What: </span>
-            {item.what}
+            {typeof item.what === 'string' ? item.what : item.what.text}
           </p>
           <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition hover:text-slate-600">
             <ChevronDown className="h-3 w-3" />
