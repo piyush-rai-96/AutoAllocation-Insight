@@ -875,7 +875,7 @@ export function getWorklistSummary(excludeIds = []) {
 const m = (value, delta = null, dir = 'neutral') => ({ value, delta, dir })
 
 export const whatIfAgent = {
-  insightTitle: 'DC Inventory Allocation & Network Optimization',
+  insightTitle: 'Constraint Rebalancing | Network Expansion',
   reportMeta: 'Fall 2026 Cycle · DC Allocation Study · Read-only simulation',
   basePlan: { code: 'BP-2026-FALL-V3', name: 'Base Allocation — Fall Cycle' },
   aiOverview:
@@ -887,6 +887,8 @@ export const whatIfAgent = {
     eligibleStores: m('250'),
     storesAllocated: m('250'),
     stylesAllocated: m('85'),
+    // Total Qty (all units) = eaches + packs × PACK_EACH_MULTIPLIER(4). 120,000 + 12,000×4 = 168,000.
+    totalQty: m('168,000'),
     totalEaches: m('120,000'),
     totalPacks: m('12,000'),
     avgFwos: m('4.2'),
@@ -901,7 +903,15 @@ export const whatIfAgent = {
     allocForMin: m('45,000'),
     allocForDemand: m('75,000'),
     remainingAta: m('38,000'),
+    // Net DC availability as % of total available pool (38,000 of 50,000 = 76%).
+    netAvailPct: m('76%'),
     dcInboundConsumed: m('12,000'),
+    // DC-wise availability breakdown (eaches + packs, and the physical available pool).
+    dc: [
+      { name: 'DC-01 · North', avail: 20000, ea: 15000, pk: 1500 },
+      { name: 'DC-02 · Central', avail: 18000, ea: 13000, pk: 1300 },
+      { name: 'DC-03 · South', avail: 12000, ea: 10000, pk: 1000 },
+    ],
   },
 
   scenarios: [
@@ -911,17 +921,49 @@ export const whatIfAgent = {
       code: 'SCEN-2026-FALL-OPT1',
       tagline: 'Constraint Rebalancing',
       overview: {
-        headline: 'Largest lost-sales recovery of the two — same inventory, smarter placement.',
+        headline: 'Lost sales fall 56.7% ($63.5K recovered) while inventory and door count stay flat.',
         points: [
-          { label: 'What drives it', text: 'Only the min/max envelope moves — the safety-stock floor is doubled on 15 high-velocity Outerwear Style-Colors and the depth ceiling is cut on 10 bulky Heavy-Knits. Door set (250) and assortment (85 styles) are held flat.' },
-          { label: 'Net result', text: 'The same 120,000-each commitment is redirected toward proven demand: lost sales fall $63.5K (−56.7%) and excess drops $38K (−21.1%) — the strongest recovery in the set.' },
-          { label: 'Coverage & risk', text: 'Forward WOS holds steady at 4.2 wks and over-capacity doors collapse 18 → 4, with no new dilution introduced — hence the recommended path.' },
+          { label: 'What drives it', text: 'Only the min/max envelope moves — the safety-stock floor is doubled on 15 high-velocity Outerwear Style-Colors and the depth ceiling is cut on 10 bulky Heavy-Knits, while the door set and assortment stay flat.' },
+          { label: 'What the data shows', text: 'The recovery comes from redeploying already-committed inventory toward proven demand — no additional eaches or doors are drawn. Lost-sales risk drops $63.5K (−56.7%) and excess risk $38.0K (−21.1%).' },
+          { label: 'Coverage & risk', text: 'Forward coverage holds flat at 4.2 weeks and over-capacity crowding falls from 18 to 4 doors, with no new dilution introduced.' },
         ],
       },
       keyChanges: [
         'Min Constraint 12 → 24 units on Outerwear Core (15 Style-Colors)',
         'Max Constraint 120 → 80 units on Heavy Knits (10 Style-Colors)',
         'Door set & assortment unchanged (250 doors · 85 styles)',
+      ],
+      // Part 1 — operational blueprint (no financials).
+      blueprint: {
+        mechanism: 'Re-tunes Min/Max inventory boundaries across the existing 250 doors — Outerwear Core Min 12 → 24 units across 15 style-colors; Heavy Knits Max 120 → 80 units across 10 style-colors.',
+        implication: 'Capitalizes entirely on committed inventory by shifting depth to high-demand doors. Requires zero added working capital and zero DC draw.',
+      },
+      // Part 2 — comparative matrix inputs.
+      retail: {
+        storeGrade: 'Concentration in Grade A & Grade B Doors',
+        rosAlignment: 'High ROS (>12 units/store/week)',
+        lifecycle: 'Reallocates stock to Peak Outerwear; trims Late-stage Knits',
+        dcBuffer: { label: 'Healthy', pct: 100, drawn: '0 units drawn', tone: 'good', note: '100% buffer retained' },
+        coverage: 'Stable at 4.2 Weeks',
+        lostSalesRecovered: '+$63,500', lostSalesRecoveredPct: '-56.7% risk reduction',
+        capitalOutlay: '$0', capitalOutlayNote: '0 additional inventory cost',
+      },
+      // Part 2 — synthesized AI insight report (KPIs + Grade/ROS/Lifecycle). Neutral, no verdict.
+      insightHeadline: 'Maximum demand recovery extracted from inventory already committed.',
+      priorityLens: [
+        { lead: 'Grade A/B concentration', text: 'depth redirected to doors running >12 units/wk ROS — the highest-velocity segment of the fleet.' },
+        { lead: 'Peak-lifecycle alignment', text: 'Outerwear Min 12 → 24 while late-stage Heavy-Knit Max 120 → 80 — stock follows the demand curve, not aging depth.' },
+        { lead: '+$63.5K recovered', text: 'lost-sales risk −56.7% and excess risk −21.1%, funded by $0 new capital.' },
+        { lead: '100% DC buffer held', text: '0 units drawn — full central cover retained for mid-season demand spikes.' },
+        { lead: 'Coverage flat at 4.2 wks', text: 'over-capacity crowding clears 18 → 4 doors with zero network dilution.' },
+      ],
+      // Cause → effect mechanism (data-driven) — how this plan moves the numbers.
+      causalChain: [
+        { text: 'Min/Max envelope re-tuned', tone: 'neutral' },
+        { text: 'Committed inventory redeployed to proven demand', tone: 'neutral' },
+        { text: 'Same 250 doors — no new DC draw', tone: 'good' },
+        { text: 'DC stock untouched · ATA 38K flat', tone: 'good' },
+        { text: 'Lost sales −56.7%, zero dilution', tone: 'good' },
       ],
       projectedImpact: [
         { label: 'Lost Sales', value: '−$63.5K (−56.7%)', dir: 'good' },
@@ -967,6 +1009,7 @@ export const whatIfAgent = {
         eligibleStores: m('250', 0, 'neutral'),
         storesAllocated: m('250', 0, 'neutral'),
         stylesAllocated: m('85', 0, 'neutral'),
+        totalQty: m('168,000', 0, 'neutral'),
         totalEaches: m('120,000', 0, 'neutral'),
         totalPacks: m('12,000', 0, 'neutral'),
         avgFwos: m('4.2', 0, 'neutral'),
@@ -981,7 +1024,13 @@ export const whatIfAgent = {
         allocForMin: m('52,000', 7000, 'warn'),
         allocForDemand: m('68,000', -7000, 'good'),
         remainingAta: m('38,000', 0, 'neutral'),
+        netAvailPct: m('76%', 0, 'neutral'),
         dcInboundConsumed: m('12,000', 0, 'neutral'),
+        dc: [
+          { name: 'DC-01 · North', avail: 20000, ea: 15000, pk: 1500 },
+          { name: 'DC-02 · Central', avail: 18000, ea: 13000, pk: 1300 },
+          { name: 'DC-03 · South', avail: 12000, ea: 10000, pk: 1000 },
+        ],
       },
     },
     {
@@ -990,17 +1039,49 @@ export const whatIfAgent = {
       code: 'SCEN-2026-FALL-OPT2',
       tagline: 'Door Network Expansion',
       overview: {
-        headline: 'Captures incremental regional volume, but dilutes coverage — the fallback.',
+        headline: 'Lost sales fall 42.0% ($47.0K recovered) via +45 doors and +15K eaches, with coverage easing to 3.5 weeks.',
         points: [
-          { label: 'What drives it', text: 'The constraint envelope is left untouched; instead the agent activates a 45-door "Tier-2 Regional Expansion" cluster (250 → 295 doors) and deploys 15,000 additional eaches to feed it.' },
-          { label: 'Net result', text: 'Spreading DC inventory across more outlets recovers $47K of lost sales (−42.0%) and trims $25K of excess (−13.8%) — a smaller recovery than Scenario 1 for a larger inventory outlay.' },
-          { label: 'Coverage & risk', text: 'The extra draw pulls Forward WOS down 4.2 → 3.5 wks and leaves 8 Style-Colors still exposed, introducing dilution risk — which is why it sits behind Scenario 1.' },
+          { label: 'What drives it', text: 'The constraint envelope is left untouched; instead the agent activates a 45-door "Tier-2 Regional Expansion" cluster and feeds it with extra eaches drawn from DC inventory.' },
+          { label: 'What the data shows', text: 'Reach expands to 295 doors and +15,000 eaches are deployed, recovering $47.0K in lost sales (−42.0%). The added volume spreads depth across more outlets rather than concentrating it.' },
+          { label: 'Coverage & risk', text: 'The extra draw pulls DC availability from 76% to 46% and eases forward coverage from 4.2 to 3.5 weeks, with several Style-Colors still showing exposure.' },
         ],
       },
       keyChanges: [
         'Added "Tier-2 Regional Expansion" — +45 doors (250 → 295)',
         'Deployed +15,000 eaches (120K → 135K) across the network',
         'Constraints held at baseline (Min 12 · Max 120)',
+      ],
+      // Part 1 — operational blueprint (no financials).
+      blueprint: {
+        mechanism: 'Expands the retail footprint by onboarding +45 Tier-2 regional doors (250 → 295 total doors) and deploying +15,000 units drawn from DC stock.',
+        implication: 'Increases geographic reach, but thins depth per door across the broader network and draws down central warehouse safety stock.',
+      },
+      // Part 2 — comparative matrix inputs.
+      retail: {
+        storeGrade: 'Distribution into Grade C & Tier-2 Doors',
+        rosAlignment: 'Moderate-to-Low ROS (4–6 units/store/week)',
+        lifecycle: 'Broad distribution across general mid-lifecycle assortment',
+        dcBuffer: { label: 'Threshold Warning', pct: 85, drawn: '15k units drawn', tone: 'bad', note: 'Breaches 70% DC Buffer Threshold', consumed: true },
+        coverage: 'Thinned to 3.5 Weeks (from 4.2 WOS)',
+        lostSalesRecovered: '+$47,000', lostSalesRecoveredPct: '-42.0% risk reduction',
+        capitalOutlay: '+$47,000', capitalOutlayNote: '$3.13 added cost per unit',
+      },
+      // Part 2 — synthesized AI insight report (KPIs + Grade/ROS/Lifecycle). Neutral, no verdict.
+      insightHeadline: 'Broader market reach, bought with inventory draw and thinner coverage.',
+      priorityLens: [
+        { lead: 'Grade C / Tier-2 focus', text: '45 new doors at 4–6 units/wk ROS on a general mid-lifecycle assortment — lower-velocity outlets.' },
+        { lead: '+$47.0K recovered', text: 'lost-sales risk −42.0%, but $16.5K behind Plan 1 at $3.13 per added unit of reach.' },
+        { lead: 'Reach +18%', text: '250 → 295 doors deploys +15K eaches, spreading depth thinner per outlet.' },
+        { lead: '15K drawn from DC', text: 'buffer 15% consumed — breaches the 70% central safety threshold.' },
+        { lead: 'Coverage 4.2 → 3.5 wks', text: 'depth dilutes across the wider network with residual Style-Color exposure.' },
+      ],
+      // Cause → effect mechanism (data-driven) — more doors pull more from the DC.
+      causalChain: [
+        { text: '+45 doors · +15K eaches deployed', tone: 'neutral' },
+        { text: 'More doors pull more from the DC', tone: 'warn' },
+        { text: 'DC drawn down · ATA 38K→23K, in-transit 12K→22K', tone: 'bad' },
+        { text: 'Depth spread thinner across 295 outlets', tone: 'warn' },
+        { text: 'Coverage thins 4.2→3.5 wks · dilution risk', tone: 'warn' },
       ],
       projectedImpact: [
         { label: 'Lost Sales', value: '−$47.0K (−42.0%)', dir: 'good' },
@@ -1038,6 +1119,7 @@ export const whatIfAgent = {
         eligibleStores: m('295', 45, 'good'),
         storesAllocated: m('295', 45, 'good'),
         stylesAllocated: m('85', 0, 'neutral'),
+        totalQty: m('189,000', 21000, 'good'),
         totalEaches: m('135,000', 15000, 'good'),
         totalPacks: m('13,500', 1500, 'good'),
         avgFwos: m('3.5', -0.7, 'warn'),
@@ -1052,7 +1134,13 @@ export const whatIfAgent = {
         allocForMin: m('48,600', 3600, 'warn'),
         allocForDemand: m('86,400', 11400, 'good'),
         remainingAta: m('23,000', -15000, 'bad'),
+        netAvailPct: m('46%', -30, 'bad'),
         dcInboundConsumed: m('22,000', 10000, 'warn'),
+        dc: [
+          { name: 'DC-01 · North', avail: 20000, ea: 9000, pk: 900 },
+          { name: 'DC-02 · Central', avail: 18000, ea: 8000, pk: 800 },
+          { name: 'DC-03 · South', avail: 12000, ea: 6000, pk: 600 },
+        ],
       },
     },
   ],
@@ -1060,19 +1148,72 @@ export const whatIfAgent = {
   // Percent deltas for the comparison table, keyed [scenarioId][metricKey].
   comparisonPct: {
     'sc-1': {
-      eligibleStores: '0%', storesAllocated: '0%', stylesAllocated: '0%', totalEaches: '0%', totalPacks: '0%',
+      eligibleStores: '0%', storesAllocated: '0%', stylesAllocated: '0%', totalQty: '0%', totalEaches: '0%', totalPacks: '0%',
       avgFwos: '0%', excessUsd: '-21.1%', overallocQty: '-21.1%', lostSalesUsd: '-56.7%', unmetQty: '-56.7%',
       overCapacity: '-77.8%', exhaustedDc: '-78.6%',
       aggMin: '+15.6%', aggMax: '-4.4%', allocForMin: '+15.6%', allocForDemand: '-9.3%',
-      remainingAta: '0%', dcInboundConsumed: '0%',
+      remainingAta: '0%', netAvailPct: '0 pts', dcInboundConsumed: '0%',
     },
     'sc-2': {
-      eligibleStores: '+18.0%', storesAllocated: '+18.0%', stylesAllocated: '0%', totalEaches: '+12.5%', totalPacks: '+12.5%',
+      eligibleStores: '+18.0%', storesAllocated: '+18.0%', stylesAllocated: '0%', totalQty: '+12.5%', totalEaches: '+12.5%', totalPacks: '+12.5%',
       avgFwos: '-16.7%', excessUsd: '-13.8%', overallocQty: '-14.0%', lostSalesUsd: '-42.0%', unmetQty: '-42.2%',
       overCapacity: '-33.3%', exhaustedDc: '-42.9%',
       aggMin: '+18.0%', aggMax: '+18.0%', allocForMin: '+8.0%', allocForDemand: '+15.2%',
-      remainingAta: '-39.5%', dcInboundConsumed: '+83.3%',
+      remainingAta: '-39.5%', netAvailPct: '−30 pts', dcInboundConsumed: '+83.3%',
     },
+  },
+
+  // ── AI Allocation Brief (Section 3 · Part 2) ──────────────────────────────
+  // A narrative, executive-brief-style report. Themed sections group the
+  // dimension-driven analysis into bulleted insights; **bold** and _italic_
+  // markers are rendered inline. Grounded in the Execution Impact Scorecard KPIs.
+  executiveBrief: {
+    intro: 'Three plans were stress-tested against the same DC pool. **Base** carries **$112K** lost sales, **$180K** excess risk, and **18 over-capacity doors** — a classic misallocation pattern where fast-turn Outerwear is understocked and slow-turn Heavy-Knits overstocked. Two scenarios fix this through opposite mechanics: **Scenario A** re-tunes min/max inside 250 doors; **Scenario B** adds 45 Tier-2 doors with **+$47K** inventory.',
+    sections: [
+      {
+        icon: 'strategy',
+        title: 'What the Numbers Reveal · Pattern Analysis',
+        bullets: [
+          '**Pattern 1 — The ROS Cliff:** Base concentrates on **Grade A/B** doors running **>12 units/wk**. Scenario A doubles down here (higher floors for Peak Outerwear). Scenario B deliberately seeds **4–6 units/wk Tier-2 doors** — the recovery per door drops by roughly **50%**, but coverage expands by **18%**.',
+          '**Pattern 2 — Lifecycle Mismatch:** Base has **fixed min/max** across all 85 styles, meaning **Peak Outerwear** (high demand) and **End-of-Life Heavy-Knits** (low demand) share the same envelope. Scenario A fixes this by **doubling Outerwear floors** and **cutting Knit ceilings 40%** — a direct demand-curve alignment.',
+          '**Pattern 3 — The Crowding Problem:** Base has **18 doors** over-capacity. Scenario A clears **14 of them** (−77.8%) by simply shifting depth to the right doors. Scenario B only clears **6** (−33.3%) — the added 45 doors re-introduce crowding at lower velocities.',
+        ],
+      },
+      {
+        icon: 'recovery',
+        title: 'Financial Recovery Breakdown',
+        bullets: [
+          '**Lost Sales:** Base **$112K** → A recovers **$63.5K** (−56.7%), B recovers **$47K** (−42%). A outperforms by **$16.5K** with no capital deployed.',
+          '**Excess Risk:** Base **$180K** → A trims **$38K** (−21.1%) to **$142K**; B trims only **$25K** (−13.8%) to **$155K**. A is **1.5x more effective** at clearing excess.',
+          '**Unmet Demand:** Base leaves **3,740 units** unmet. A closes **2,120** (57% closure); B closes **1,580** (42% closure). The gap between A and B is **540 units** — A is more surgical.',
+          '**Over-Capacity:** A clears **18 → 4 doors** (−77.8%). B clears **18 → 12 doors** (−33.3%). The pattern is clear: **better placement beats more doors** for crowding.',
+        ],
+      },
+      {
+        icon: 'inventory',
+        title: 'DC & Inventory Dynamics',
+        bullets: [
+          '**Buffer Preservation:** Scenario A draws **zero eaches** — DC availability stays at **76%** and coverage holds **4.2 weeks**. Scenario B pulls **15K eaches**, crashing availability to **46%** and breaching the **70% safety threshold**.',
+          '**Coverage Dilution:** Base coverage is **4.2 weeks** across 250 doors. Scenario B spreads the same inventory across **295 doors** — coverage drops to **3.5 weeks** (−16.7%) with **4 styles** still exhausting the primary DC.',
+          '**Capital Efficiency:** Scenario A recovers **$63.5K** at **$0 incremental** — infinite ROI on committed inventory. Scenario B recovers **$47K** at **$47K cost** — roughly **$3.13/unit** and a **1:1** recovery-to-outlay ratio.',
+        ],
+      },
+      {
+        icon: 'tradeoff',
+        title: 'The Strategic Trade-off',
+        bullets: [
+          '**Scenario A = Efficiency Play.** Every KPI improves — lost sales, excess, crowding, buffer, coverage — with **zero additional inventory**. The trade-off is geographic: **regional whitespace stays untouched**.',
+          '**Scenario B = Reach Play.** Buys **45 new markets** and a real demand signal from Tier-2 doors, but at the cost of **buffer breach**, **coverage dilution**, and **slower velocity per door**. The trade-off is capital: **+$47K** for a smaller recovery.',
+          '**The Pattern:** A extracts **more recovery from less inventory** by fixing placement. B extracts **less recovery from more inventory** by expanding footprint. The data suggests **misallocation is the bigger problem than coverage**.',
+        ],
+      },
+    ],
+    suggestions: [
+      'If the priority is **capital efficiency**, **Scenario A** is dominant — **$63.5K** recovery, **$0 outlay**, buffer intact, crowding cleared.',
+      'If **regional expansion** is a committed strategy, **Scenario B** works — but _budget an additional replenishment run to restore DC buffer above 70% before peak season_.',
+      'Either way, the Base Plan pattern is clear: **fixed min/max envelopes create simultaneous stockouts and overstocks**. Re-tuning the envelope — even without adding doors — yields outsized returns.',
+    ],
+    closing: 'The data tells a consistent story: **allocation quality matters more than allocation quantity**. Scenario A fixes the misallocation pattern inside the existing network; Scenario B expands the network without fixing the pattern. Both improve on Base — the choice is whether this cycle needs **efficiency** or **reach**.',
   },
 
   // Derived executive summary tiles (computed from the recommended scenario S1).
@@ -1091,53 +1232,25 @@ export const whatIfAgent = {
 
   // Overall 3-way comparison + soft recommendation (Base vs Plan 1 vs Plan 2).
   planComparison: {
-    intro: 'Gen AI analyzed the full value profile of all three plans and surfaced the comparison below.',
+    intro: 'Beyond each plan\'s own metrics above, Gen AI weighed them head-to-head — here is what only surfaces in the comparison.',
     insights: [
-      { label: 'Lost-sales recovery', text: 'Plan 1 recovers the most — $48.5K remaining vs Base $112K (−56.7%), ahead of Plan 2 at $65K (−42.0%).', dir: 'good' },
-      { label: 'Excess risk', text: 'Both plans cut excess, but Plan 1 goes deepest: $142K vs Base $180K (−21.1%), where Plan 2 only reaches $155K (−13.8%).', dir: 'good' },
-      { label: 'Coverage stability', text: 'Plan 1 holds Avg FWOS steady at 4.2 wks; Plan 2 dilutes to 3.5 wks and leaves 8 Style-Colors exposed.', dir: 'warn' },
-      { label: 'Inventory & network cost', text: 'Plan 1 reuses the same 120K eaches and 250 doors, while Plan 2 needs +15K eaches and +45 new doors to deliver a smaller swing.', dir: 'neutral' },
-      { label: 'Over-capacity relief', text: 'Plan 1 collapses over-capacity doors 18 → 4 (−14); Plan 2 only reaches 12 (−6).', dir: 'good' },
-    ],
-    columns: [
-      {
-        id: 'base', name: 'Base Plan', code: 'BP-2026-FALL-V3', stance: 'Baseline',
-        stanceDir: 'neutral', verdict: 'Leaves outerwear exposed and depth trapped.',
-        metrics: [
-          { label: 'Lost Sales', value: '$112.0K', dir: 'bad' },
-          { label: 'Excess Risk', value: '$180.0K', dir: 'bad' },
-          { label: 'Over-Capacity', value: '18 doors', dir: 'bad' },
-          { label: 'Avg FWOS', value: '4.2 wks', dir: 'neutral' },
-        ],
-      },
-      {
-        id: 'sc-1', name: 'Plan 1 · Constraint Rebalancing', code: 'SCEN-2026-FALL-OPT1', stance: 'Recommended',
-        stanceDir: 'good', verdict: 'Best recovery, coverage held, no new risk.',
-        metrics: [
-          { label: 'Lost Sales', value: '$48.5K', delta: '−56.7%', dir: 'good' },
-          { label: 'Excess Risk', value: '$142.0K', delta: '−21.1%', dir: 'good' },
-          { label: 'Over-Capacity', value: '4 doors', delta: '−14', dir: 'good' },
-          { label: 'Avg FWOS', value: '4.2 wks', delta: 'stable', dir: 'neutral' },
-        ],
-      },
-      {
-        id: 'sc-2', name: 'Plan 2 · Door Network Expansion', code: 'SCEN-2026-FALL-OPT2', stance: 'Fallback',
-        stanceDir: 'warn', verdict: 'Adds regional reach but dilutes coverage.',
-        metrics: [
-          { label: 'Lost Sales', value: '$65.0K', delta: '−42.0%', dir: 'good' },
-          { label: 'Excess Risk', value: '$155.0K', delta: '−13.8%', dir: 'good' },
-          { label: 'Over-Capacity', value: '12 doors', delta: '−6', dir: 'good' },
-          { label: 'Avg FWOS', value: '3.5 wks', delta: '−0.7', dir: 'warn' },
-        ],
-      },
+      { label: 'Opposite levers, one winner', text: 'Both plans chase the same lost-sales goal from opposite directions — Plan 1 reshapes demand inside today\'s footprint, Plan 2 buys reach with new doors and inventory. Plan 1 comes out ahead on every risk axis.', dir: 'good' },
+      { label: 'Recovery efficiency', text: 'Plan 1 delivers the bigger swing without adding a single each or door, while Plan 2\'s heavier outlay buys a smaller one — far weaker recovery per unit of inventory deployed.', dir: 'good' },
+      { label: 'Coverage direction', text: 'Only Plan 2 moves coverage the wrong way and leaves Style-Colors exposed; Plan 1 protects forward weeks-of-supply even as it recovers demand.', dir: 'warn' },
+      { label: 'Reversibility', text: 'Plan 1 is a constraint tweak you can unwind mid-cycle if signals shift; Plan 2 commits capital to new doors that are hard to reverse — Plan 1 keeps optionality open.', dir: 'good' },
     ],
     recommendation: {
-      pick: 'Plan 1 · Constraint Rebalancing',
-      headline: 'Go with Plan 1 — strongest lost-sales recovery with zero added risk.',
+      pick: 'Leaning toward Plan 1 · Constraint Rebalancing',
+      headline: 'If the call were ours, the evidence leans toward Plan 1 this cycle — but the decision stays with you.',
+      // "Wow" insight — the single most striking, quantified takeaway.
+      wow: {
+        stat: 'Recovery per unit of inventory deployed',
+        text: 'The two plans differ sharply in inventory intensity: Scenario 1 recovers $63.5K in lost sales with 0 extra eaches deployed, while Scenario 2 recovers $47.0K after deploying +15,000 eaches — a difference of $16.5K in recovery for a materially larger draw. In Scenario 2, each added unit of reach carries roughly $3.13 of inventory.',
+      },
       points: [
-        'Recovers $63.5K lost sales (−56.7%) and trims $38K excess (−21.1%) — the best net swing of the three.',
-        'Holds FWOS steady at 4.2 wks and needs no new doors or inventory, so it carries no dilution risk.',
-        'Keep Plan 2 as fallback only if incremental Tier-2 regional volume is explicitly required.',
+        'You could ship it this cycle if you choose: gains come purely from reshaping min/max floors, so no PO edits or new-door onboarding are involved — no added lead time.',
+        'Worth protecting if you proceed: locking the redirected depth against DC-01 on-hand would keep later replenishment from re-diluting the Outerwear demand this plan secures.',
+        'Plan 2 may still earn its place: think of it as a trigger rather than a runner-up — best considered only if Tier-2 regional expansion becomes a committed merchandising goal.',
       ],
     },
   },
