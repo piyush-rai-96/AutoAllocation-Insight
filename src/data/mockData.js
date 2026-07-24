@@ -108,23 +108,35 @@ export const kpis = [
     tooltip: 'Estimated revenue exposure from unmet demand across flagged stores.',
   },
   {
+    // Executive summary of the Macro Store Health framework: the union of stores
+    // flagged by either lens. Derived from the 14 evaluated stores in the
+    // Macro Store Health bucket — 5 Over Physical Capacity (util ≥ 100%) and
+    // 7 with an Inventory Health issue (Broad Understock/Overstock/Imbalanced).
+    // Their union is 7 unique stores requiring attention (5 breach stores are a
+    // subset of the 7 inventory-flagged stores). Percentages use all 14 stores.
     id: 'storesNearCapacity',
     icon: 'Warehouse',
-    title: 'Store Capacity Risk',
-    metric: 'At-Risk Store Count',
-    value: '9',
+    title: 'Macro Store Health',
+    metric: 'Stores Requiring Attention',
+    value: '7',
     accent: 'indigo',
     lines: [
-      { label: 'Total Cycle Stores', value: '141 stores' },
-      { label: 'Capacity Breach (>100% Fill)', value: '3 stores · 107% peak', warn: true },
+      { label: 'Capacity Breach', value: '36% of Stores' },
+      { label: 'Inventory Health Risk', value: '50% of Stores', warn: true },
     ],
-    spark: [2, 3, 4, 5, 6, 8, 9],
-    delta: '+3 stores',
+    // Trend of Stores Requiring Attention across the last 7 Allocation Runs.
+    spark: [3, 5, 4, 6, 5, 4, 7],
+    sparkLabel: '7 runs',
+    delta: '+3 Stores',
     deltaDir: 'up',
-    deltaNote: 'vs 7-day avg',
-    overlay: { title: 'Capacity Watch', unmetUnits: '9', label: 'Stores at / over capacity' },
+    deltaNote: 'vs Previous Allocation Run',
+    overlay: {
+      title: 'Stores Requiring Attention',
+      unmetUnits: '7',
+      label: 'Flagged by Capacity Breach or Inventory Health',
+    },
     tooltip:
-      'Stores where projected fill (On Hand + On Order + In Transit + New Allocation) is nearing or exceeding capacity — a soft-constraint breach that can strand stock in the backroom.',
+      'Unique stores requiring operational attention — flagged under Capacity Breach (projected physical fill over capacity) and/or Store Inventory Health (Broad Understock, Broad Overstock, or Imbalanced Inventory vs. Target Weeks of Supply). Stores flagged by both lenses are counted once. Percentages use all evaluated stores in the Allocation Run.',
   },
 ]
 

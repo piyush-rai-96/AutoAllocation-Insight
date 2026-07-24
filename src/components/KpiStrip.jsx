@@ -117,7 +117,7 @@ function KpiCard({ kpi }) {
         </div>
         <div className="mb-0.5 flex flex-col items-end gap-0.5 opacity-80">
           <Sparkline data={kpi.spark} stroke={accent.spark} fill={accent.spark} width={88} height={30} />
-          <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">7-day</span>
+          <span className="text-[9px] font-medium uppercase tracking-wide text-slate-400">{kpi.sparkLabel || '7-day'}</span>
         </div>
       </div>
 
